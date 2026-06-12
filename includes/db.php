@@ -187,7 +187,7 @@ function notify(PDO $conn, string $type, string $title, string $message, string 
     if (!in_array($type, $allowed)) $type = 'system';
     $stmt = $conn->prepare(
         "INSERT INTO notifications (user_id, title, message, type, is_read, link)
-         VALUES (?, ?, ?, ?, 0, ?)"
+         VALUES (?, ?, ?, ?, false, ?)"
     );
     if ($stmt) {
         $stmt->execute([$user_id, $title, $message, $type, $link]);

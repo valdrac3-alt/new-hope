@@ -148,7 +148,10 @@ $list_stmt->closeCursor();
                     <div style="font-size:0.72rem;color:var(--gray-400);font-weight:500;"><?php echo number_format($total_count); ?> total record<?php echo $total_count !== 1 ? 's' : ''; ?></div>
                 </div>
             </div>
-            <div style="margin-left:auto;">
+            <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
+                <a href="<?php echo BASE_URL; ?>modules/walkin/add.php" style="display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:10px;background:var(--gray-50);color:var(--primary);border:1.5px solid var(--primary);font-size:0.84rem;font-weight:700;text-decoration:none;transition:all 0.15s;" onmouseover="this.style.background='var(--primary-bg)'" onmouseout="this.style.background='var(--gray-50)'">
+                    <i class="bi bi-person-walking" style="font-size:0.95rem;"></i> Walk-in
+                </a>
                 <button onclick="openWalkinDrawer()" data-bs-toggle="modal" data-bs-target="#apptModal" style="display:inline-flex;align-items:center;gap:7px;padding:9px 20px;border-radius:10px;background:linear-gradient(135deg,var(--success),var(--success-light));color:var(--white);border:none;font-size:0.84rem;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(22,163,74,0.3);transition:all 0.15s;" onmouseover="this.style.boxShadow='0 4px 14px rgba(22,163,74,0.45)'" onmouseout="this.style.boxShadow='0 2px 8px rgba(22,163,74,0.3)'">
                     <i class="bi bi-plus-circle-fill" style="font-size:0.95rem;"></i> New Appointment
                 </button>
@@ -322,7 +325,7 @@ $list_stmt->closeCursor();
                                     </button>
                                     <?php endif; ?>
                                     <!-- Print -->
-                                    <a href="<?php echo BASE_URL; ?>modules/print/appointment_slip.php?id=<?php echo $a['id']; ?>" target="_blank"
+                                    <a href="<?php echo BASE_URL; ?>modules/print/appointment_slip.php?id=<?php echo $a['id']; ?>"
                                        style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:7px;background:var(--gray-50);color:var(--gray-500);border:1.5px solid var(--gray-200);text-decoration:none;font-size:0.8rem;transition:all 0.12s;" title="Print Slip" aria-label="Print appointment slip">
                                         <i class="bi bi-printer" aria-hidden="true"></i>
                                     </a>
@@ -412,10 +415,13 @@ $list_stmt->closeCursor();
                 <div style="margin-top:10px;padding:10px;background:var(--blue-50);border-radius:6px;font-size:0.78rem;color:var(--blue-600);">
                     <i class="bi bi-info-circle-fill"></i> This will mark the appointment as <strong>Confirmed</strong> and notify the patient.
                 </div>
+                <div id="confirmApptError" style="display:none;margin-top:10px;padding:8px 10px;background:var(--danger-bg);border-radius:6px;font-size:0.78rem;color:var(--danger);border:1px solid var(--danger-border);">
+                    <i class="bi bi-exclamation-circle-fill"></i> <span></span>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-sm btn-primary" onclick="doConfirmAppt()">
+                <button type="button" id="doConfirmBtn" class="btn btn-sm btn-primary" onclick="doConfirmAppt()">
                     <i class="bi bi-check-lg"></i> Yes, Confirm
                 </button>
             </div>
@@ -574,16 +580,35 @@ function openConfirmModal(id, code, patient) {
 
 function doConfirmAppt() {
     if (!pendingConfirmId) return;
+    var btn = document.getElementById('doConfirmBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Confirming...'; }
     confirmApptModal.hide();
     fetch(_baseUrl+'api/appointments.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'update_status', id: pendingConfirmId, status: 'confirmed', _csrf: getCsrfToken() })
     })
-    .then(res => res.json())
+    .then(res => {
+        if (!res.ok) throw new Error('Server error (' + res.status + '). Please refresh and try again.');
+        return res.json();
+    })
     .then(data => {
-        if (data.status === 'success') location.reload();
-        else alert('Error: ' + data.message);
+        if (data.status === 'success') {
+            location.reload();
+        } else {
+            confirmApptModal.show();
+            if (btn) { btn.disabled = false; btn.textContent = 'Yes, Confirm'; }
+            var errEl = document.getElementById('confirmApptError');
+            if (errEl) { errEl.querySelector('span').textContent = data.message || 'Confirmation failed. Please try again.'; errEl.style.display = 'block'; }
+            else { alert('Error: ' + (data.message || 'Confirmation failed. Please try again.')); }
+        }
+    })
+    .catch(err => {
+        confirmApptModal.show();
+        if (btn) { btn.disabled = false; btn.textContent = 'Yes, Confirm'; }
+        var errEl = document.getElementById('confirmApptError');
+        if (errEl) { errEl.querySelector('span').textContent = err.message || 'A server error occurred. Please refresh and try again.'; errEl.style.display = 'block'; }
+        else { alert(err.message || 'A server error occurred. Please refresh.'); }
     });
 }
 </script>
@@ -965,7 +990,7 @@ function submitWalkin() {
                 var placeholder = tbody.querySelector('td[colspan]');
                 if (placeholder) placeholder.closest('tr').remove();
                 var cBtn = '<button style="display:inline-flex;align-items:center;gap:4px;padding:5px 12px;min-height:30px;border-radius:8px;background:var(--blue-50);color:var(--primary);border:1.5px solid var(--blue-200);font-size:0.75rem;font-weight:700;cursor:pointer;" onclick="openConfirmModal(' + (appt.appt_id||0) + ',\'' + (appt.appt_code||'').replace(/'/g,"\\x27") + '\',\'' + (appt.patient_name||'').replace(/'/g,"\\x27") + '\')"><i class="bi bi-check-lg"></i> Confirm</button>';
-                var pBtn = '<a href="' + _baseUrl + 'modules/print/appointment_slip.php?id=' + (appt.appt_id||'') + '" target="_blank" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:7px;background:var(--gray-50);color:var(--gray-500);border:1.5px solid var(--gray-200);text-decoration:none;font-size:0.8rem;"><i class="bi bi-printer"></i></a>';
+                var pBtn = '<a href="' + _baseUrl + 'modules/print/appointment_slip.php?id=' + (appt.appt_id||'') + '" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:7px;background:var(--gray-50);color:var(--gray-500);border:1.5px solid var(--gray-200);text-decoration:none;font-size:0.8rem;"><i class="bi bi-printer"></i></a>';
                 var eBtn = '<button style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:7px;background:var(--gray-50);color:var(--gray-500);border:1.5px solid var(--gray-200);cursor:pointer;font-size:0.8rem;"><i class="bi bi-pencil-square"></i></button>';
                 var dBtn = '<button style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:7px;background:var(--danger-bg);color:var(--danger);border:1.5px solid var(--danger-border);cursor:pointer;font-size:0.8rem;" onclick="confirmDeleteAppt(' + (appt.appt_id||0) + ',\'' + (appt.appt_code||'').replace(/'/g,"\\x27") + '\')"><i class="bi bi-trash"></i></button>';
                 var tr = document.createElement('tr');
