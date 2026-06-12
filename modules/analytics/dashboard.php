@@ -279,7 +279,7 @@ $pb_returning   = json_encode(array_column($patient_breakdown, 'returning_count'
     transition: box-shadow 0.2s, transform 0.2s;
 }
 .an-kpi-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.09); transform: translateY(-1px); }
-[data-theme="dark"] .an-kpi-card { background: var(--gray-800); border-color: var(--gray-700); }
+[data-theme="dark"] .an-kpi-card { background: var(--gray-100); border-color: var(--gray-200); }
 
 .an-kpi-icon {
     width: 48px; height: 48px; border-radius: 14px;
@@ -293,7 +293,7 @@ $pb_returning   = json_encode(array_column($patient_breakdown, 'returning_count'
 
 .an-kpi-label  { font-size: 0.72rem; color: var(--gray-500); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
 .an-kpi-value  { font-size: 1.9rem; font-weight: 800; line-height: 1.1; color: var(--gray-900); margin-bottom: 5px; }
-[data-theme="dark"] .an-kpi-value { color: #e2e8f0; }
+[data-theme="dark"] .an-kpi-value { color: var(--gray-900); }
 .an-kpi-value.sm { font-size: 1.5rem; }
 
 .kpi-trend      { display: inline-flex; align-items: center; gap: 1px; font-size: 0.74rem; font-weight: 600; border-radius: 20px; padding: 2px 7px; }
@@ -317,16 +317,16 @@ $pb_returning   = json_encode(array_column($patient_breakdown, 'returning_count'
     overflow: hidden;
     box-shadow: 0 1px 4px rgba(0,0,0,0.05);
 }
-[data-theme="dark"] .an-card { background: var(--gray-800); border-color: var(--gray-700); }
+[data-theme="dark"] .an-card { background: var(--gray-100); border-color: var(--gray-200); }
 
 .an-card-head {
     padding: 16px 22px;
     border-bottom: 1px solid var(--gray-100);
     display: flex; align-items: center; justify-content: space-between;
 }
-[data-theme="dark"] .an-card-head { border-bottom-color: var(--gray-700); }
+[data-theme="dark"] .an-card-head { border-bottom-color: var(--gray-200); }
 .an-card-head-title { font-size: 0.82rem; font-weight: 700; color: var(--gray-700); display: flex; align-items: center; gap: 6px; }
-[data-theme="dark"] .an-card-head-title { color: #b0bec5; }
+[data-theme="dark"] .an-card-head-title { color: var(--gray-700); }
 .an-card-head-sub   { font-size: 0.73rem; color: var(--gray-400); }
 .an-card-body { padding: 22px; }
 

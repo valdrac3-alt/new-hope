@@ -173,7 +173,7 @@ $pat_trend = trend($patients_this_month, $patients_last_month);
     transition: opacity 0.2s;
 }
 .dash-kpi:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.09); transform: translateY(-2px); color: inherit; }
-[data-theme="dark"] .dash-kpi { background: var(--gray-800); border-color: var(--gray-700); }
+[data-theme="dark"] .dash-kpi { background: var(--gray-100); border-color: var(--gray-200); }
 
 .kpi-top { display: flex; align-items: center; justify-content: space-between; }
 .kpi-icon {
@@ -188,7 +188,7 @@ $pat_trend = trend($patients_this_month, $patients_last_month);
 
 .kpi-label { font-size: 0.72rem; color: var(--gray-500); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
 .kpi-value { font-size: 2rem; font-weight: 800; line-height: 1; color: var(--gray-900); }
-[data-theme="dark"] .kpi-value { color: #e2e8f0; }
+[data-theme="dark"] .kpi-value { color: var(--gray-900); }
 .kpi-value.sm { font-size: 1.5rem; }
 .kpi-trend {
     display: inline-flex; align-items: center; gap: 3px;
@@ -245,8 +245,8 @@ $pat_trend = trend($patients_this_month, $patients_last_month);
 .qa-btn.success:hover { background: #15803d; color: #fff; }
 .qa-btn.outline  { background: transparent; color: var(--gray-700); border-color: var(--gray-200); }
 .qa-btn.outline:hover { background: var(--gray-50); color: var(--gray-800); border-color: var(--gray-300); }
-[data-theme="dark"] .qa-btn.outline { color: #b0bec5; border-color: var(--gray-600); }
-[data-theme="dark"] .qa-btn.outline:hover { background: var(--gray-700); color: #e2e8f0; }
+[data-theme="dark"] .qa-btn.outline { color: var(--gray-700); border-color: var(--gray-300); }
+[data-theme="dark"] .qa-btn.outline:hover { background: var(--gray-150); color: var(--gray-900); }
 
 /* Flow bar */
 .flow-bar {
@@ -271,12 +271,12 @@ $pat_trend = trend($patients_this_month, $patients_last_month);
     color: var(--gray-400); border-bottom: 1px solid var(--gray-100);
     background: var(--gray-50); text-align: left;
 }
-[data-theme="dark"] .appt-table th { background: var(--gray-700); border-color: var(--gray-600); }
+[data-theme="dark"] .appt-table th { background: var(--gray-150); border-color: var(--gray-200); }
 .appt-table td {
     padding: 10px 14px; font-size: 0.82rem; color: var(--gray-700);
     border-bottom: 1px solid var(--gray-100); vertical-align: middle;
 }
-[data-theme="dark"] .appt-table td { border-color: var(--gray-700); color: #b0bec5; }
+[data-theme="dark"] .appt-table td { border-color: var(--gray-200); color: var(--gray-700); }
 .appt-table tr:last-child td { border-bottom: none; }
 .appt-table tbody tr { transition: background 0.12s; cursor: pointer; }
 .appt-table tbody tr:hover { background: var(--gray-50); }
@@ -284,7 +284,7 @@ $pat_trend = trend($patients_this_month, $patients_last_month);
 
 .appt-code { font-weight: 700; color: #2563eb; font-size: 0.78rem; }
 .appt-name { font-weight: 600; color: var(--gray-800); }
-[data-theme="dark"] .appt-name { color: #e2e8f0; }
+[data-theme="dark"] .appt-name { color: var(--gray-900); }
 .appt-service { color: var(--gray-500); font-size: 0.78rem; }
 .appt-doctor  { font-size: 0.72rem; color: #2563eb; font-weight: 600; margin-top: 1px; }
 
@@ -303,7 +303,7 @@ $pat_trend = trend($patients_this_month, $patients_last_month);
     padding: 14px 18px; border-bottom: 1px solid var(--gray-100);
     font-size: 0.82rem; font-weight: 700; color: var(--gray-700);
 }
-[data-theme="dark"] .sec-head { border-color: var(--gray-700); color: #b0bec5; }
+[data-theme="dark"] .sec-head { border-color: var(--gray-200); color: var(--gray-700); }
 .sec-head-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 </style>
 </head>

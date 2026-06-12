@@ -241,10 +241,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 .eu-footer .btn-cancel:hover { border-color: var(--gray-400,#9ca3af); color: var(--gray-700,#374151); }
 
 [data-theme="dark"] .eu-section { background: var(--card-bg); }
-[data-theme="dark"] .eu-readonly { background: var(--gray-800,#1f2937); color: var(--gray-400); }
+[data-theme="dark"] .eu-readonly { background: var(--gray-150); color: var(--gray-600); }
 [data-theme="dark"] .eu-footer   { background: var(--gray-900,#111827); }
 [data-theme="dark"] .eu-footer .btn-cancel { background: transparent; }
-[data-theme="dark"] .eu-rules span { background: var(--gray-800); border-color: var(--gray-700); }
+[data-theme="dark"] .eu-rules span { background: var(--gray-150); border-color: var(--gray-200); }
 </style>
 <body>
 <?php include '../../includes/sidebar.php'; ?>
