@@ -149,7 +149,7 @@ $list_stmt->closeCursor();
                 </div>
             </div>
             <div style="margin-left:auto;">
-                <button onclick="openWalkinDrawer()" style="display:inline-flex;align-items:center;gap:7px;padding:9px 20px;border-radius:10px;background:linear-gradient(135deg,var(--success),var(--success-light));color:var(--white);border:none;font-size:0.84rem;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(22,163,74,0.3);transition:all 0.15s;" onmouseover="this.style.boxShadow='0 4px 14px rgba(22,163,74,0.45)'" onmouseout="this.style.boxShadow='0 2px 8px rgba(22,163,74,0.3)'">
+                <button onclick="openWalkinDrawer()" data-bs-toggle="modal" data-bs-target="#apptModal" style="display:inline-flex;align-items:center;gap:7px;padding:9px 20px;border-radius:10px;background:linear-gradient(135deg,var(--success),var(--success-light));color:var(--white);border:none;font-size:0.84rem;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(22,163,74,0.3);transition:all 0.15s;" onmouseover="this.style.boxShadow='0 4px 14px rgba(22,163,74,0.45)'" onmouseout="this.style.boxShadow='0 2px 8px rgba(22,163,74,0.3)'">
                     <i class="bi bi-plus-circle-fill" style="font-size:0.95rem;"></i> New Appointment
                 </button>
             </div>
@@ -588,22 +588,29 @@ function doConfirmAppt() {
 }
 </script>
 
-<div class="drawer-overlay" id="drawerOverlay" onclick="closeWalkinDrawer()"></div>
+<!-- ── New Appointment Modal ─────────────────────────────── -->
+<div class="modal fade" id="apptModal" tabindex="-1" aria-labelledby="apptModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content" style="border:none;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,0.18);">
 
-<div class="drawer-panel" id="walkinDrawer">
-    <div class="drawer-resize-handle" id="drawerResizeHandle" title="Drag to resize"></div>
-    <div class="drawer-head">
+      <!-- Header -->
+      <div class="modal-header" style="padding:18px 24px;border-bottom:var(--border);background:linear-gradient(135deg,var(--blue-500),var(--blue-400));border-radius:16px 16px 0 0;">
         <div>
-            <h6><i class="bi bi-person-walking"></i> New Appointment</h6>
-            <p id="drawerSubtitle">Register a new patient — today or advance booking</p>
+          <h5 class="modal-title" id="apptModalLabel" style="color:#fff;font-weight:800;font-size:1rem;margin:0;"><i class="bi bi-calendar2-plus"></i> New Appointment</h5>
+          <p id="drawerSubtitle" style="color:rgba(255,255,255,0.82);font-size:0.78rem;margin:2px 0 0;">Register a new patient — today or advance booking</p>
         </div>
-        <button class="drawer-close" onclick="closeWalkinDrawer()">✕</button>
-    </div>
-    <div class="drawer-slot-bar" id="drawerSlotBar">
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <!-- Slot info bar -->
+      <div id="drawerSlotBar" style="background:var(--primary-bg);border-bottom:var(--border);padding:8px 24px;font-size:0.82rem;display:flex;align-items:center;gap:8px;">
         <span style="color:var(--gray-400);">Loading slot info...</span>
-    </div>
-    <div id="drawerAlert" style="display:none;margin:14px 22px 0;"></div>
-    <div class="drawer-body">
+      </div>
+
+      <!-- Alert -->
+      <div id="drawerAlert" style="display:none;padding:0 24px;margin-top:14px;"></div>
+
+      <div class="modal-body" style="padding:22px 24px;">
         <form id="walkinDrawerForm" autocomplete="off">
             <input type="hidden" name="_ajax" value="1">
             <?php echo csrf_field(); ?>
@@ -690,14 +697,17 @@ function doConfirmAppt() {
                 </div>
             </div>
         </form>
-    </div>
-    <div class="drawer-foot">
-        <button type="button" class="btn btn-success" id="walkinSubmitBtn" onclick="submitWalkin()">
+      </div><!-- /.modal-body -->
+
+      <div class="modal-footer" style="padding:14px 24px;border-top:var(--border);gap:8px;">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-success" id="walkinSubmitBtn" onclick="submitWalkin()" style="min-width:160px;font-weight:700;">
             <i class="bi bi-person-check-fill"></i> <span id="walkinBtnLabel">Register Patient</span>
         </button>
-        <button type="button" class="btn btn-outline-secondary" onclick="closeWalkinDrawer()">Cancel</button>
-    </div>
-</div>
+      </div>
+    </div><!-- /.modal-content -->
+  </div><!-- /.modal-dialog -->
+</div><!-- /#apptModal -->
 
 <div id="walkinToast" style="display:none;position:fixed;bottom:28px;right:28px;z-index:2000;background:var(--white);border:1.5px solid var(--success-border);border-radius:12px;padding:14px 20px;box-shadow:0 8px 24px rgba(0,0,0,0.12);max-width:360px;animation:slideToast 0.3s ease;">
     <div style="display:flex;align-items:flex-start;gap:10px;">
@@ -727,9 +737,8 @@ var _patientSearchTimer = null;
 
 function openWalkinDrawer(presetDate) {
     var dateToUse = presetDate || _today;
-    document.getElementById('walkinDrawer').classList.add('open');
-    document.getElementById('drawerOverlay').classList.add('open');
-    document.body.style.overflow = 'hidden';
+    var modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('apptModal'));
+    modal.show();
     document.getElementById('walkinDrawerForm').reset();
     requestAnimationFrame(function(){
         document.getElementById('drawerDate').value = dateToUse;
@@ -745,9 +754,8 @@ function openWalkinDrawer(presetDate) {
 }
 
 function closeWalkinDrawer() {
-    document.getElementById('walkinDrawer').classList.remove('open');
-    document.getElementById('drawerOverlay').classList.remove('open');
-    document.body.style.overflow = '';
+    var modal = bootstrap.Modal.getInstance(document.getElementById('apptModal'));
+    if (modal) modal.hide();
 }
 
 function searchPatient(q) {
@@ -1009,46 +1017,6 @@ document.addEventListener('DOMContentLoaded', function() {
     <?php endif; ?>
 });
 <?php endif; ?>
-
-(function() {
-    var handle  = document.getElementById('drawerResizeHandle');
-    var drawer  = document.getElementById('walkinDrawer');
-    var isDragging = false;
-    var startX, startWidth;
-
-    var savedWidth = localStorage.getItem('drawerWidth');
-    if (savedWidth) drawer.style.width = savedWidth + 'px';
-
-    handle.addEventListener('mousedown', function(e) {
-        isDragging = true;
-        startX     = e.clientX;
-        startWidth = drawer.offsetWidth;
-        handle.classList.add('dragging');
-        document.body.style.cursor    = 'ew-resize';
-        document.body.style.userSelect = 'none';
-        e.preventDefault();
-    });
-
-    document.addEventListener('mousemove', function(e) {
-        if (!isDragging) return;
-        var newWidth = Math.min(860, Math.max(340, startWidth + (startX - e.clientX)));
-        drawer.style.width = newWidth + 'px';
-    });
-
-    document.addEventListener('mouseup', function() {
-        if (!isDragging) return;
-        isDragging = false;
-        handle.classList.remove('dragging');
-        document.body.style.cursor    = '';
-        document.body.style.userSelect = '';
-        localStorage.setItem('drawerWidth', drawer.offsetWidth);
-    });
-
-    handle.addEventListener('dblclick', function() {
-        drawer.style.width = '440px';
-        localStorage.removeItem('drawerWidth');
-    });
-})();
 </script>
 </body>
 </html>

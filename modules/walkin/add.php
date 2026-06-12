@@ -484,6 +484,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['_ajax']) && $error) 
 ?><!DOCTYPE html>
 <html lang="en">
 <head><?php include '../../includes/head.php'; ?>
+<style>
+/* ── Walk-in page: phone input fix ── */
+.phone-input-wrap .form-select {
+    border-radius: var(--border-radius-md) 0 0 var(--border-radius-md) !important;
+    border-right: 0 !important;
+    font-size: 0.82rem;
+}
+.phone-input-wrap .form-control {
+    border-radius: 0 var(--border-radius-md) var(--border-radius-md) 0 !important;
+}
+.phone-input-wrap > div { display: flex !important; }
+
+/* ── Walk-in page: next-slot alert banner ── */
+.walkin-slot-banner {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: linear-gradient(135deg, var(--primary-bg), #e0f2fe);
+    border: 1.5px solid var(--blue-200);
+    border-radius: 12px;
+    padding: 14px 20px;
+    margin-bottom: 20px;
+}
+.walkin-slot-banner .slot-time {
+    font-size: 1.5rem;
+    font-weight: 900;
+    color: var(--blue-600, #2563eb);
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+    white-space: nowrap;
+}
+.walkin-slot-banner .slot-label {
+    font-size: 0.78rem;
+    color: var(--gray-500);
+    margin-top: 2px;
+}
+
+/* ── slot timeline pill ── */
+.slot-pill {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 12px; border-radius: 9px; font-size: 0.8rem;
+    font-weight: 600; border: 1.5px solid transparent;
+    transition: all 0.15s;
+}
+.slot-pill.free    { background: var(--success-bg); color: var(--success); border-color: var(--success-border); }
+.slot-pill.booked  { background: var(--danger-bg);  color: var(--danger);  border-color: var(--danger-border);  opacity:.8; }
+.slot-pill.past    { background: var(--gray-100);   color: var(--gray-400); border-color: var(--gray-200); opacity:.6; }
+.slot-pill.next    { background: linear-gradient(135deg,var(--blue-500),var(--blue-400)); color:#fff; border-color: var(--blue-500); box-shadow: 0 2px 10px rgba(37,99,235,.3); }
+</style>
 </head>
 <body>
 <?php include '../../includes/sidebar.php'; ?>
@@ -491,51 +540,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['_ajax']) && $error) 
     <?php include '../../includes/header.php'; ?>
     <div class="page-content">
 
-        <div class="page-header">
-            <div>
-                <h5>Walk-in Registration</h5>
-                <p>
-                    The system scans today's schedule and assigns the first available slot.
-                    <?php if (!empty($slot_data['open_label'])): ?>
-                    <span style="color:var(--gray-500);">
-                        Clinic hours today: <strong><?php echo $slot_data['open_label']; ?></strong>
-                        to <strong><?php echo $slot_data['close_label']; ?></strong>
-                        (<?php echo $slot_data['total_slots'] ?? 0; ?> slots,
-                        <?php echo $slot_data['booked_count'] ?? 0; ?> booked)
-                    </span>
-                    <?php endif; ?>
-                </p>
+        <!-- Page Header Bar -->
+        <div class="page-header-bar" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:20px;background:var(--white);border:var(--border);border-radius:14px;padding:12px 18px;box-shadow:0 1px 6px rgba(0,0,0,0.05);">
+            <div style="display:flex;align-items:center;gap:10px;">
+                <div style="width:40px;height:40px;background:linear-gradient(135deg,var(--blue-500),var(--blue-400));border-radius:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="bi bi-person-walking" style="color:#fff;font-size:1.1rem;"></i>
+                </div>
+                <div>
+                    <div style="font-size:1rem;font-weight:800;color:var(--gray-900);line-height:1.1;">Walk-in Registration</div>
+                    <div style="font-size:0.72rem;color:var(--gray-400);font-weight:500;">
+                        <?php if (!empty($slot_data['open_label'])): ?>
+                        Clinic hours: <strong><?php echo $slot_data['open_label']; ?></strong> – <strong><?php echo $slot_data['close_label']; ?></strong>
+                        · <?php echo ($slot_data['total_slots'] ?? 0) - ($slot_data['booked_count'] ?? 0); ?> slots free
+                        <?php else: ?>
+                        Assigns the next available time slot automatically
+                        <?php endif; ?>
+                    </div>
+                </div>
             </div>
+            <?php if (!$slot_data['is_closed'] && !empty($next_label)): ?>
+            <div style="margin-left:auto;display:flex;align-items:center;gap:10px;background:var(--primary-bg);border:1.5px solid var(--blue-200);border-radius:10px;padding:8px 16px;">
+                <i class="bi bi-clock-fill" style="color:var(--blue-500);font-size:1rem;"></i>
+                <div>
+                    <div style="font-size:0.65rem;color:var(--gray-500);text-transform:uppercase;font-weight:700;letter-spacing:.06em;">Next available slot</div>
+                    <div style="font-size:1.15rem;font-weight:900;color:var(--blue-600,#2563eb);font-family:var(--font-display);line-height:1.1;"><?php echo $next_label; ?></div>
+                </div>
+            </div>
+            <?php endif; ?>
         </div>
 
-        <!-- Status Banner -->
+        <!-- Status Banner (closed / full only — green slot shown in header above) -->
         <?php if ($slot_data['is_closed']): ?>
-        <div class="alert alert-warning" style="display:flex;align-items:flex-start;gap:12px;margin-bottom:20px;">
+        <div class="alert alert-warning" style="display:flex;align-items:flex-start;gap:12px;margin-bottom:20px;border-radius:12px;">
             <i class="bi bi-calendar-x" style="font-size:1.2rem;flex-shrink:0;margin-top:2px;"></i>
             <div>
                 <strong>Clinic closed today</strong> — <?php echo e($slot_data['reason']); ?><br>
-                <span style="font-size:0.82rem;">You can still register using the manual time field below.</span>
+                <span style="font-size:0.82rem;">You can still register a patient using the manual time field below.</span>
             </div>
         </div>
         <?php elseif (!empty($slot_data['is_full'])): ?>
-        <div class="alert alert-warning" style="display:flex;align-items:flex-start;gap:12px;margin-bottom:20px;">
+        <div class="alert alert-warning" style="display:flex;align-items:flex-start;gap:12px;margin-bottom:20px;border-radius:12px;">
             <i class="bi bi-calendar-check" style="font-size:1.2rem;flex-shrink:0;margin-top:2px;"></i>
             <div>
-                <strong>Schedule is full</strong> — <?php echo e($slot_data['reason']); ?><br>
-                <span style="font-size:0.82rem;">You can still register using the manual time field below.</span>
-            </div>
-        </div>
-        <?php else: ?>
-        <div class="alert alert-info" style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
-            <i class="bi bi-clock-fill" style="font-size:1.2rem;flex-shrink:0;"></i>
-            <div>
-                <strong>Next available slot:</strong>
-                <span style="color:var(--blue-600);font-weight:700;font-size:1.05rem;margin:0 8px;">
-                    <?php echo $next_label; ?>
-                </span>
-                <span style="font-size:0.82rem;color:var(--gray-500);">
-                    — This will be assigned to the walk-in patient automatically.
-                </span>
+                <strong>All slots booked</strong> — <?php echo e($slot_data['reason']); ?><br>
+                <span style="font-size:0.82rem;">You can still register a patient using the manual time field below.</span>
             </div>
         </div>
         <?php endif; ?>
@@ -584,11 +632,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['_ajax']) && $error) 
             </div>
 
             <?php else: ?>
-            <div class="card">
-                <div class="card-header">
-                    <i class="bi bi-person-walking" style="color:var(--blue-500)"></i> Patient Details
+            <div class="card" style="border-radius:14px;overflow:hidden;">
+                <div class="card-header" style="background:var(--white);border-bottom:var(--border);padding:14px 20px;display:flex;align-items:center;gap:10px;">
+                    <div style="width:32px;height:32px;background:linear-gradient(135deg,var(--blue-500),var(--blue-400));border-radius:8px;display:flex;align-items:center;justify-content:center;">
+                        <i class="bi bi-person-walking" style="color:#fff;font-size:0.9rem;"></i>
+                    </div>
+                    <div>
+                        <div style="font-weight:700;font-size:0.9rem;color:var(--gray-900);">Patient Details</div>
+                        <div style="font-size:0.7rem;color:var(--gray-400);">Fill in the fields below to register a walk-in patient</div>
+                    </div>
                 </div>
-                <div class="card-body">
+                <div class="card-body" style="padding:20px;">
                     <form method="POST">
                     <?php echo csrf_field(); ?>
                         <div class="row g-3">
@@ -652,14 +706,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['_ajax']) && $error) 
                                 <div style="font-size:0.72rem;color:var(--gray-400);margin-top:4px;">24-hour format only. Leave blank to use the next available slot.</div>
                             </div>
                         </div>
-                        <div class="mt-4" style="display:flex;gap:10px;align-items:center;">
-                            <button type="submit" class="btn btn-success">
+                        <div class="mt-4" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding-top:8px;border-top:var(--border);">
+                            <button type="submit" class="btn btn-success" style="padding:10px 24px;font-weight:700;font-size:0.9rem;border-radius:10px;">
                                 <i class="bi bi-person-check-fill"></i> Register Walk-in
                             </button>
                             <?php if ($next_label): ?>
-                            <span style="font-size:0.82rem;color:var(--gray-500);">
-                                <i class="bi bi-clock"></i> Auto-slot: <strong style="color:var(--blue-600);"><?php echo $next_label; ?></strong>
-                            </span>
+                            <div style="display:flex;align-items:center;gap:7px;background:var(--primary-bg);border:1.5px solid var(--blue-200);border-radius:8px;padding:6px 14px;">
+                                <i class="bi bi-arrow-right-circle-fill" style="color:var(--blue-500);"></i>
+                                <span style="font-size:0.82rem;color:var(--gray-600);">Auto-slot: <strong style="color:var(--blue-600);"><?php echo $next_label; ?></strong></span>
+                            </div>
                             <?php endif; ?>
                         </div>
                     </form>
@@ -670,41 +725,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['_ajax']) && $error) 
 
             <!-- RIGHT: Today's slot timeline — always visible -->
             <div>
-                <div class="card" style="position:sticky;top:82px;">
-                    <div class="card-header" style="font-size:0.82rem;">
-                        <i class="bi bi-calendar-day" style="color:var(--blue-500)"></i>
-                        Today — <?php echo date('D, M d'); ?>
+                <div class="card" style="position:sticky;top:82px;border-radius:14px;overflow:hidden;">
+                    <div class="card-header" style="background:var(--white);border-bottom:var(--border);padding:12px 16px;display:flex;align-items:center;gap:8px;">
+                        <i class="bi bi-calendar-day" style="color:var(--blue-500);font-size:1rem;"></i>
+                        <div>
+                            <div style="font-weight:700;font-size:0.85rem;color:var(--gray-900);">Today — <?php echo date('D, M d'); ?></div>
+                            <div style="font-size:0.68rem;color:var(--gray-400);">Schedule overview</div>
+                        </div>
                     </div>
                     <div class="card-body" style="padding:14px 16px;">
                         <?php if (empty($slot_data['all_slots'])): ?>
                         <div style="text-align:center;padding:24px;color:var(--gray-400);font-size:0.82rem;">
-                            <i class="bi bi-calendar-x" style="font-size:2rem;display:block;margin-bottom:8px;"></i>
+                            <i class="bi bi-calendar-x" style="font-size:2rem;display:block;margin-bottom:8px;opacity:.5;"></i>
                             <?php echo e($slot_data['reason'] ?? 'No schedule today.'); ?>
                         </div>
                         <?php else: ?>
 
                         <!-- Stats row -->
                         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;text-align:center;">
-                            <div style="background:var(--gray-50);border-radius:8px;padding:8px 4px;">
-                                <div style="font-family:'Outfit',sans-serif;font-weight:700;font-size:1.3rem;color:var(--blue-500);"><?php echo $slot_data['total_slots']; ?></div>
-                                <div style="font-size:0.62rem;color:var(--gray-400);text-transform:uppercase;letter-spacing:0.05em;">Total</div>
+                            <div style="background:var(--gray-50);border-radius:10px;padding:10px 4px;border:1.5px solid var(--gray-100);">
+                                <div style="font-family:var(--font-display);font-weight:800;font-size:1.4rem;color:var(--gray-700);"><?php echo $slot_data['total_slots']; ?></div>
+                                <div style="font-size:0.62rem;color:var(--gray-400);text-transform:uppercase;letter-spacing:0.05em;font-weight:700;">Total</div>
                             </div>
-                            <div style="background:var(--danger-bg);border-radius:8px;padding:8px 4px;">
-                                <div style="font-family:'Outfit',sans-serif;font-weight:700;font-size:1.3rem;color:var(--danger);"><?php echo $slot_data['booked_count']; ?></div>
-                                <div style="font-size:0.62rem;color:var(--danger);text-transform:uppercase;letter-spacing:0.05em;">Booked</div>
+                            <div style="background:var(--danger-bg);border-radius:10px;padding:10px 4px;border:1.5px solid var(--danger-border);">
+                                <div style="font-family:var(--font-display);font-weight:800;font-size:1.4rem;color:var(--danger);"><?php echo $slot_data['booked_count']; ?></div>
+                                <div style="font-size:0.62rem;color:var(--danger);text-transform:uppercase;letter-spacing:0.05em;font-weight:700;">Booked</div>
                             </div>
-                            <div style="background:var(--success-bg);border-radius:8px;padding:8px 4px;">
-                                <div style="font-family:'Outfit',sans-serif;font-weight:700;font-size:1.3rem;color:var(--success);"><?php echo max(0, $slot_data['total_slots'] - $slot_data['booked_count']); ?></div>
-                                <div style="font-size:0.62rem;color:var(--success);text-transform:uppercase;letter-spacing:0.05em;">Free</div>
+                            <div style="background:var(--success-bg);border-radius:10px;padding:10px 4px;border:1.5px solid var(--success-border);">
+                                <div style="font-family:var(--font-display);font-weight:800;font-size:1.4rem;color:var(--success);"><?php echo max(0, $slot_data['total_slots'] - $slot_data['booked_count']); ?></div>
+                                <div style="font-size:0.62rem;color:var(--success);text-transform:uppercase;letter-spacing:0.05em;font-weight:700;">Free</div>
                             </div>
                         </div>
 
                         <!-- Slot pills -->
-                        <div class="slot-timeline">
+                        <div class="slot-timeline" style="display:flex;flex-wrap:wrap;gap:6px;">
                         <?php foreach ($slot_data['all_slots'] as $s):
                             if ($s['past'] && $s['taken']) $cls = 'taken past';
                             elseif ($s['past'])              $cls = 'past';
-                            elseif ($s['taken'])             $cls = 'taken';
+                            elseif ($s['taken'])             $cls = 'booked';
                             elseif ($s['time'].':00' === $next_slot) $cls = 'next';
                             else                             $cls = 'free';
                         ?>
@@ -714,18 +772,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['_ajax']) && $error) 
                             elseif ($cls === 'next') echo 'Next → will be auto-assigned';
                             else echo 'Available';
                         ?>">
+                            <?php if ($cls === 'next'): ?><i class="bi bi-arrow-right-circle-fill" style="font-size:.7rem;"></i><?php elseif ($s['taken']): ?><i class="bi bi-x-circle-fill" style="font-size:.7rem;"></i><?php else: ?><i class="bi bi-circle" style="font-size:.7rem;"></i><?php endif; ?>
                             <?php echo $s['label']; ?>
-                            <?php if ($s['taken']): ?> ✗<?php elseif ($cls === 'next'): ?> ←<?php endif; ?>
                         </span>
                         <?php endforeach; ?>
                         </div>
 
                         <!-- Legend -->
-                        <div style="margin-top:12px;font-size:0.68rem;color:var(--gray-400);display:flex;gap:10px;flex-wrap:wrap;">
-                            <span><span style="display:inline-block;width:8px;height:8px;background:var(--blue-500);border-radius:2px;margin-right:3px;"></span>Next</span>
-                            <span><span style="display:inline-block;width:8px;height:8px;background:var(--blue-100);border:1px solid var(--blue-300);border-radius:2px;margin-right:3px;"></span>Free</span>
-                            <span><span style="display:inline-block;width:8px;height:8px;background:var(--gray-200);border-radius:2px;margin-right:3px;"></span>Booked</span>
-                            <span><span style="display:inline-block;width:8px;height:8px;background:var(--gray-100);border-radius:2px;margin-right:3px;"></span>Past</span>
+                        <div style="margin-top:12px;font-size:0.68rem;color:var(--gray-400);display:flex;gap:10px;flex-wrap:wrap;padding-top:10px;border-top:var(--border);">
+                            <span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:8px;height:8px;background:var(--blue-500);border-radius:50%;"></span>Next</span>
+                            <span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:8px;height:8px;background:var(--success);border-radius:50%;"></span>Free</span>
+                            <span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:8px;height:8px;background:var(--danger);border-radius:50%;"></span>Booked</span>
+                            <span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:8px;height:8px;background:var(--gray-300);border-radius:50%;"></span>Past</span>
                         </div>
                         <?php endif; ?>
                     </div>

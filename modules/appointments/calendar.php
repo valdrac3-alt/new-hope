@@ -819,17 +819,20 @@ $show_now=($day_date===$today&&$now_h>=$open_h&&$now_h<$close_h);
     </div>
 </div>
 
-<!-- Drawer -->
-<div class="drawer-overlay" id="drawerOverlay" onclick="closeWalkinDrawer()"></div>
-<div class="drawer-panel" id="walkinDrawer">
-    <div class="drawer-resize-handle" id="drawerResizeHandle" title="Drag to resize"></div>
-    <div class="drawer-head">
-        <div><h6><i class="bi bi-person-walking"></i> New Appointment</h6><p id="drawerSubtitle">Register a new patient — today or advance booking</p></div>
-        <button class="drawer-close" onclick="closeWalkinDrawer()">✕</button>
-    </div>
-    <div class="drawer-slot-bar" id="drawerSlotBar"><span style="color:var(--gray-400);">Loading slot info...</span></div>
-    <div id="drawerAlert" style="display:none;margin:14px 22px 0;"></div>
-    <div class="drawer-body">
+<!-- New Appointment Modal -->
+<div class="modal fade" id="newApptModal" tabindex="-1" aria-labelledby="newApptModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content" style="border:none;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,0.18);">
+      <div class="modal-header" style="padding:18px 24px;border-bottom:var(--border);background:linear-gradient(135deg,var(--blue-500),var(--blue-400));border-radius:16px 16px 0 0;">
+        <div>
+          <h5 class="modal-title" id="newApptModalLabel" style="color:#fff;font-weight:800;font-size:1rem;margin:0;"><i class="bi bi-calendar2-plus"></i> New Appointment</h5>
+          <p id="drawerSubtitle" style="color:rgba(255,255,255,0.82);font-size:0.78rem;margin:2px 0 0;">Register a new patient — today or advance booking</p>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div id="drawerSlotBar" style="background:var(--primary-bg);border-bottom:var(--border);padding:8px 24px;font-size:0.82rem;display:flex;align-items:center;gap:8px;"><span style="color:var(--gray-400);">Loading slot info...</span></div>
+      <div id="drawerAlert" style="display:none;padding:0 24px;margin-top:14px;"></div>
+      <div class="modal-body" style="padding:22px 24px;">
         <form id="walkinDrawerForm" autocomplete="off">
             <input type="hidden" name="_ajax" value="1">
             <?php echo csrf_field(); ?>
@@ -840,7 +843,6 @@ $show_now=($day_date===$today&&$now_h>=$open_h&&$now_h<$close_h);
                     <input type="date" name="appointment_date" id="drawerDate" class="form-control" min="<?php echo date('Y-m-d');?>" value="<?php echo date('Y-m-d');?>">
                     <div style="font-size:0.72rem;color:var(--gray-500);margin-top:4px;">Today = walk-in. Future date = advance booking.</div>
                 </div>
-                <!-- Patient search -->
                 <div class="col-12">
                     <label class="form-label" style="font-weight:600;">Patient Search</label>
                     <div style="position:relative;">
@@ -861,7 +863,6 @@ $show_now=($day_date===$today&&$now_h>=$open_h&&$now_h<$close_h);
                         </button>
                     </div>
                 </div>
-                <!-- Name fields hidden by default -->
                 <div class="col-6" id="drawerFirstNameWrap" style="display:none;">
                     <label class="form-label">First Name <span style="color:var(--danger)">*</span></label>
                     <input type="text" name="first_name" id="drawerFirstName" class="form-control" placeholder="e.g. Juan">
@@ -889,7 +890,6 @@ $show_now=($day_date===$today&&$now_h>=$open_h&&$now_h<$close_h);
                     </select>
                     <div id="drawerDoctorNote" style="font-size:0.72rem;color:var(--gray-400);margin-top:3px;">Showing doctors available today.</div>
                 </div>
-                <!-- Time slot — always visible, optional for today, required for future -->
                 <div class="col-12" id="drawerSlotPickerWrap">
                     <label class="form-label">Preferred Time <span style="color:var(--danger)" id="drawerTimeRequired">*</span><span id="drawerTimeOptionalNote" style="font-size:0.72rem;color:var(--gray-400);font-weight:400;display:none;"> (optional — leave blank to auto-assign)</span></label>
                     <select name="selected_time" id="drawerSlotSelect" class="form-select">
@@ -900,11 +900,13 @@ $show_now=($day_date===$today&&$now_h>=$open_h&&$now_h<$close_h);
                 <div class="col-12"><label class="form-label">Notes</label><textarea name="notes" class="form-control" rows="2" maxlength="500"></textarea></div>
             </div>
         </form>
+      </div>
+      <div class="modal-footer" style="padding:14px 24px;border-top:var(--border);gap:8px;">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-success" id="walkinSubmitBtn" onclick="submitWalkin()" style="min-width:160px;font-weight:700;"><i class="bi bi-person-check-fill"></i> <span id="walkinBtnLabel">Register Patient</span></button>
+      </div>
     </div>
-    <div class="drawer-foot">
-        <button type="button" class="btn btn-success" id="walkinSubmitBtn" onclick="submitWalkin()"><i class="bi bi-person-check-fill"></i> <span id="walkinBtnLabel">Register Patient</span></button>
-        <button type="button" class="btn btn-outline-secondary" onclick="closeWalkinDrawer()">Cancel</button>
-    </div>
+  </div>
 </div>
 <!-- No Dental Record Warning Modal -->
 <div class="modal fade" id="noRecordModal" tabindex="-1">
@@ -1088,9 +1090,8 @@ var _patientSearchTimer = null;
 var _newPatientFieldsVisible = false;
 
 function openWalkinDrawer(presetDate){
-    document.getElementById('walkinDrawer').classList.add('open');
-    document.getElementById('drawerOverlay').classList.add('open');
-    document.body.style.overflow='hidden';
+    var modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('newApptModal'));
+    modal.show();
     document.getElementById('walkinDrawerForm').reset();
     var dateToUse = (presetDate && presetDate >= _today) ? presetDate : _today;
     document.getElementById('drawerDate').value=dateToUse;
@@ -1106,9 +1107,8 @@ function openWalkinDrawer(presetDate){
     loadDrawerDateData(dateToUse);
 }
 function closeWalkinDrawer(){
-    document.getElementById('walkinDrawer').classList.remove('open');
-    document.getElementById('drawerOverlay').classList.remove('open');
-    document.body.style.overflow='';
+    var modal = bootstrap.Modal.getInstance(document.getElementById('newApptModal'));
+    if(modal) modal.hide();
 }
 function showNewPatientFields(show){
     ['drawerFirstNameWrap','drawerLastNameWrap','drawerPhoneWrap'].forEach(function(id){
