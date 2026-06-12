@@ -50,11 +50,12 @@ function find_next_available_slot($conn) {
     $day   = strtolower(date('l'));
 
     // Check if today is blocked
-    $blocked = $conn->query(
-        "SELECT id FROM blocked_dates WHERE blocked_date = '$today'"
-    )->rowCount();
+    $bl = $conn->prepare("SELECT id FROM blocked_dates WHERE blocked_date = ? LIMIT 1");
+    $bl->execute([$today]);
+    $blocked_row = $bl->fetch(PDO::FETCH_ASSOC);
+    $bl->closeCursor();
 
-    if ($blocked > 0) {
+    if ($blocked_row) {
         return [
             'slot'      => null,
             'label'     => null,
@@ -65,9 +66,10 @@ function find_next_available_slot($conn) {
     }
 
     // Get today's schedule
-    $sched = $conn->query(
-        "SELECT * FROM schedules WHERE day_of_week = '$day' AND is_open = TRUE LIMIT 1"
-    )->fetch(PDO::FETCH_ASSOC);
+    $ss = $conn->prepare("SELECT * FROM schedules WHERE day_of_week = ? AND is_open = TRUE LIMIT 1");
+    $ss->execute([$day]);
+    $sched = $ss->fetch(PDO::FETCH_ASSOC);
+    $ss->closeCursor();
 
     if (!$sched) {
         return [
@@ -87,18 +89,21 @@ function find_next_available_slot($conn) {
     // We need duration_minutes so we block slots that fall *inside* an existing
     // appointment's window, not just slots that share the exact same start time.
     // e.g. A 90-min root canal at 13:00 must also block the 13:30 slot.
-    $booked_res = $conn->query("
+    $br = $conn->prepare("
         SELECT a.appointment_time,
-               COALESCE(s.duration_minutes, " . intval($sched['slot_duration_minutes']) . ") AS duration_minutes
+               COALESCE(s.duration_minutes, ?) AS duration_minutes
         FROM   appointments a
         LEFT JOIN services s ON s.id = a.service_id
-        WHERE  a.appointment_date = '$today'
+        WHERE  a.appointment_date = ?
         AND    a.status NOT IN ('cancelled','no-show')
         ORDER BY a.appointment_time ASC
     ");
+    $br->execute([intval($sched['slot_duration_minutes']), $today]);
+    $booked_rows = $br->fetchAll(PDO::FETCH_ASSOC);
+    $br->closeCursor();
     $booked_windows = [];
     $booked_count   = 0;
-    while ($row = $booked_res->fetch(PDO::FETCH_ASSOC)) {
+    foreach ($booked_rows as $row) {
         $appt_start = strtotime($today . ' ' . $row['appointment_time']);
         $booked_windows[] = [
             'start' => $appt_start,
@@ -161,18 +166,22 @@ function find_next_available_slot($conn) {
 
 // ── AJAX: slot + doctor data for any date (used by the drawer) ──────────────
 function get_slots_for_date_any($conn, $date) {
-    $today   = date('Y-m-d');
-    $day     = strtolower(date('l', strtotime($date)));
+    $today    = date('Y-m-d');
+    $day      = strtolower(date('l', strtotime($date)));
     $is_today = ($date === $today);
 
-    $bst = $conn->prepare("SELECT id FROM blocked_dates WHERE blocked_date = ?");
+    // Check blocked date
+    $bst = $conn->prepare("SELECT id FROM blocked_dates WHERE blocked_date = ? LIMIT 1");
     $bst->execute([$date]);
-    $blocked = $bst->rowCount() > 0; $bst->closeCursor();
-    if ($blocked) return ['is_closed'=>true,'reason'=>'This date is blocked.','all_slots'=>[],'slot'=>null,'label'=>null];
+    $blocked_row = $bst->fetch(PDO::FETCH_ASSOC);
+    $bst->closeCursor();
+    if ($blocked_row) return ['is_closed'=>true,'reason'=>'This date is blocked.','all_slots'=>[],'slot'=>null,'label'=>null];
 
+    // Check schedule
     $sst = $conn->prepare("SELECT * FROM schedules WHERE day_of_week = ? AND is_open = TRUE LIMIT 1");
     $sst->execute([$day]);
-    $sched = $sst->fetch(PDO::FETCH_ASSOC); $sst->closeCursor();
+    $sched = $sst->fetch(PDO::FETCH_ASSOC);
+    $sst->closeCursor();
     if (!$sched) return ['is_closed'=>true,'reason'=>'Clinic is closed on '.ucfirst($day).'s.','all_slots'=>[],'slot'=>null,'label'=>null];
 
     $open_ts  = strtotime($date.' '.$sched['open_time']);
@@ -180,9 +189,11 @@ function get_slots_for_date_any($conn, $date) {
     $step     = intval($sched['slot_duration_minutes'] ?? 30) * 60;
     $def_dur  = intval($sched['slot_duration_minutes'] ?? 30);
 
+    // Get booked appointments
     $ast = $conn->prepare("SELECT a.appointment_time, COALESCE(s.duration_minutes,?) AS duration_minutes FROM appointments a LEFT JOIN services s ON s.id=a.service_id WHERE a.appointment_date=? AND a.status NOT IN ('cancelled','no-show')");
     $ast->execute([$def_dur, $date]);
-    $arows = $ast->fetchAll(PDO::FETCH_ASSOC); $ast->closeCursor();
+    $arows = $ast->fetchAll(PDO::FETCH_ASSOC);
+    $ast->closeCursor();
 
     $booked=[]; foreach ($arows as $r) { $s=strtotime($date.' '.$r['appointment_time']); $booked[]=['start'=>$s,'end'=>$s+intval($r['duration_minutes'])*60]; }
     $all_slots=[]; $next_slot=$next_label=null; $now=time();
