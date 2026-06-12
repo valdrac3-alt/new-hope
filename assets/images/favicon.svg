@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#bg)"/>
+  <!-- Tooth shape: white molar -->
+  <path d="M20 18 C20 14 24 12 28 14 C30 15 32 15 34 15
+            C36 15 38 15 40 14 C44 12 48 14 48 18
+            C48 24 46 28 44 30 C42 32 42 36 41 42
+            C40 46 38 50 36 50 C34 50 33 46 32 42
+            C31 46 30 50 28 50 C26 50 24 46 23 42
+            C22 36 22 32 20 30 C18 28 16 24 20 18 Z"
+        fill="white" opacity="0.95"/>
+</svg>

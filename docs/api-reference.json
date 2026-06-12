@@ -1,0 +1,123 @@
+
+{
+  "project": "DentalCare.PH - Clinic Management System",
+  "version": "1.0.0",
+  "base_url": "https://cap-production-6bfc.up.railway.app",
+  "database": "MySQL",
+  "authentication": "Session-based (PHP Sessions)",
+  "endpoints": {
+    "patients": {
+      "url": "/api/patients.php",
+      "methods": ["GET", "POST"],
+      "description": "Manage patient records",
+      "parameters": {
+        "search": "Search by name, code, or phone",
+        "page": "Pagination page number"
+      }
+    },
+    "appointments": {
+      "url": "/api/appointments.php",
+      "methods": ["GET", "POST"],
+      "description": "Manage appointments and scheduling",
+      "parameters": {
+        "date": "Filter by appointment date",
+        "status": "pending | confirmed | completed | cancelled | no-show",
+        "doctor_id": "Filter by doctor"
+      }
+    },
+    "billing": {
+      "url": "/api/billing.php",
+      "methods": ["GET", "POST"],
+      "description": "Manage patient bills and payments",
+      "parameters": {
+        "patient_id": "Filter by patient",
+        "status": "unpaid | partial | paid"
+      }
+    },
+    "notifications": {
+      "url": "/api/notifications.php",
+      "methods": ["GET", "POST"],
+      "description": "System notifications management",
+      "actions": {
+        "mark_read": "Mark single notification as read",
+        "mark_all_read": "Mark all notifications as read"
+      }
+    },
+    "analytics": {
+      "url": "/api/analytics.php",
+      "methods": ["GET"],
+      "description": "Dashboard analytics and statistics",
+      "parameters": {
+        "period": "last_7_days | last_30_days | this_month | this_year"
+      }
+    },
+    "walkin": {
+      "url": "/api/walkin.php",
+      "methods": ["POST"],
+      "description": "Register walk-in patients quickly"
+    }
+  },
+  "database_tables": {
+    "users": "System users (admin and staff)",
+    "patients": "Patient personal and medical records",
+    "doctors": "Doctor profiles and schedules",
+    "appointments": "Appointment bookings and status",
+    "dental_records": "Treatment and dental procedure records",
+    "bills": "Billing and payment records",
+    "services": "Dental services and pricing",
+    "schedules": "Clinic operating schedules",
+    "blocked_dates": "Blocked/holiday dates",
+    "notifications": "System notifications",
+    "audit_logs": "User activity audit trail",
+    "rate_limits": "API rate limiting records",
+    "api_tokens": "API authentication tokens",
+    "inventory": "Dental supplies inventory",
+    "settings": "System configuration settings",
+    "sessions": "User session management"
+  },
+  "modules": {
+    "patients": "Patient records management",
+    "appointments": "Appointment scheduling and calendar",
+    "billing": "Payment and billing management",
+    "treatments": "Dental records and treatment history",
+    "doctors": "Doctor profile management",
+    "services": "Dental service catalog",
+    "schedule": "Clinic schedule management",
+    "analytics": "Business analytics dashboard",
+    "reports": "System reports generation",
+    "users": "User account management",
+    "logs": "Audit logs and activity tracking"
+  },
+  "print_features": [
+    "Appointment Slip",
+    "Daily Schedule",
+    "Dental Record",
+    "Medical Certificate",
+    "Patient Profile",
+    "Payment Receipt",
+    "Prescription"
+  ],
+  "security_features": [
+    "Session-based authentication",
+    "hCaptcha on login",
+    "Math CAPTCHA",
+    "Login attempt limiting (5 attempts)",
+    "5-minute lockout",
+    "Honeypot bot detection",
+    "API rate limiting",
+    "Prepared statements (SQL injection prevention)",
+    "XSS protection headers",
+    "Password complexity requirements",
+    "OTP password reset via SMS and Email",
+    "Audit logging"
+  ],
+  "tech_stack": {
+    "backend": "PHP 8.4",
+    "server": "FrankenPHP",
+    "database": "MySQL 8",
+    "frontend": "Bootstrap 5.3",
+    "icons": "Bootstrap Icons 1.10",
+    "deployment": "Railway.app",
+    "version_control": "GitHub"
+  }
+}
