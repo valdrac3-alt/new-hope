@@ -152,6 +152,161 @@ if ($action === 'get_slots') {
     exit();
 }
 
+// GET SINGLE APPOINTMENT (for edit/reschedule modal)
+if ($action === 'get_appointment') {
+    $id = intval($_GET['id'] ?? 0);
+    if (!$id) {
+        echo json_encode(['status' => 'error', 'message' => 'ID required.']);
+        exit();
+    }
+    $stmt = $conn->prepare("
+        SELECT a.id, a.appointment_code, a.patient_id, a.service_id, a.doctor_id,
+               a.appointment_date, a.appointment_time, a.type, a.status, a.notes,
+               CONCAT(p.first_name,' ',p.last_name) as patient_name,
+               s.service_name, d.full_name as doctor_name
+        FROM appointments a
+        LEFT JOIN patients p ON p.id = a.patient_id
+        LEFT JOIN services s ON s.id = a.service_id
+        LEFT JOIN doctors  d ON d.id = a.doctor_id
+        WHERE a.id = ? LIMIT 1
+    ");
+    $stmt->execute([$id]);
+    $appt = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$appt) {
+        echo json_encode(['status' => 'error', 'message' => 'Appointment not found.']);
+        exit();
+    }
+    echo json_encode(['status' => 'ok', 'appointment' => $appt]);
+    exit();
+}
+
+// RESCHEDULE APPOINTMENT (change date, time, doctor, service, notes)
+if ($action === 'reschedule') {
+    $submitted = $body['_csrf'] ?? '';
+    $expected  = $_SESSION['csrf_token'] ?? '';
+    if (empty($submitted) || empty($expected) || !hash_equals($expected, $submitted)) {
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'Invalid request token. Please refresh and try again.']);
+        exit();
+    }
+
+    $id               = intval($body['id'] ?? 0);
+    $new_date         = trim($body['appointment_date'] ?? '');
+    $new_time         = trim($body['appointment_time'] ?? '');
+    $new_service_id   = intval($body['service_id'] ?? 0) ?: null;
+    $new_doctor_id    = intval($body['doctor_id'] ?? 0) ?: null;
+    $new_notes        = trim($body['notes'] ?? '');
+
+    if (!$id) {
+        http_response_code(422);
+        echo json_encode(['status' => 'error', 'message' => 'Invalid appointment ID.']);
+        exit();
+    }
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $new_date)) {
+        http_response_code(422);
+        echo json_encode(['status' => 'error', 'message' => 'Invalid date format.']);
+        exit();
+    }
+    if (!preg_match('/^\d{2}:\d{2}(:\d{2})?$/', $new_time)) {
+        http_response_code(422);
+        echo json_encode(['status' => 'error', 'message' => 'Invalid time format. Use HH:MM.']);
+        exit();
+    }
+
+    // Fetch current appointment to log changes
+    $cur = $conn->prepare("SELECT appointment_code, appointment_date, appointment_time, patient_id, status FROM appointments WHERE id = ? LIMIT 1");
+    $cur->execute([$id]);
+    $current = $cur->fetch(PDO::FETCH_ASSOC);
+    if (!$current) {
+        http_response_code(404);
+        echo json_encode(['status' => 'error', 'message' => 'Appointment not found.']);
+        exit();
+    }
+
+    // Don't allow rescheduling completed/cancelled appointments
+    if (in_array($current['status'], ['completed', 'cancelled'])) {
+        http_response_code(422);
+        echo json_encode(['status' => 'error', 'message' => 'Cannot reschedule a ' . $current['status'] . ' appointment.']);
+        exit();
+    }
+
+    // Duplicate guard: warn if patient already has another appt on new date
+    $dup = $conn->prepare("
+        SELECT appointment_code FROM appointments
+        WHERE patient_id = ? AND appointment_date = ?
+          AND status NOT IN ('cancelled','no-show') AND id != ?
+        LIMIT 1
+    ");
+    $dup->execute([$current['patient_id'], $new_date, $id]);
+    $dup_row = $dup->fetch(PDO::FETCH_ASSOC);
+
+    $stmt = $conn->prepare("
+        UPDATE appointments
+        SET appointment_date = ?, appointment_time = ?,
+            service_id = ?, doctor_id = ?, notes = ?,
+            status = CASE WHEN status = 'confirmed' THEN 'pending' ELSE status END
+        WHERE id = ?
+    ");
+    if ($stmt->execute([$new_date, $new_time, $new_service_id, $new_doctor_id, $new_notes, $id])) {
+        $old_date = date('M d, Y', strtotime($current['appointment_date']));
+        $new_date_fmt = date('M d, Y', strtotime($new_date));
+        $details = "Rescheduled from $old_date " . date('h:i A', strtotime($current['appointment_time']))
+                 . " → $new_date_fmt " . date('h:i A', strtotime($new_time));
+        log_action($conn, $current_user_id, $current_user_name, 'Rescheduled Appointment', 'appointments', $id, $details);
+        notify($conn, 'appointment', 'Appointment Rescheduled',
+            $current['appointment_code'] . ' rescheduled to ' . $new_date_fmt . ' at ' . date('h:i A', strtotime($new_time)),
+            'modules/appointments/list.php');
+        echo json_encode([
+            'status'            => 'success',
+            'message'           => 'Appointment rescheduled successfully.',
+            'duplicate_warning' => $dup_row ? 'Note: Patient already has appointment ' . $dup_row['appointment_code'] . ' on this date.' : '',
+        ]);
+    } else {
+        http_response_code(500);
+        echo json_encode(['status' => 'error', 'message' => 'Reschedule failed. Please try again.']);
+    }
+    exit();
+}
+
+// CHECK FOR DUPLICATE APPOINTMENT (same patient, same date, not cancelled/no-show)
+if ($action === 'check_duplicate') {
+    $patient_id = intval($_GET['patient_id'] ?? $body['patient_id'] ?? 0);
+    $date       = trim($_GET['date'] ?? $body['date'] ?? '');
+    $exclude_id = intval($_GET['exclude_id'] ?? $body['exclude_id'] ?? 0); // for reschedule
+
+    if (!$patient_id || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+        echo json_encode(['status' => 'ok', 'duplicate' => false]);
+        exit();
+    }
+
+    $dup_stmt = $conn->prepare("
+        SELECT a.id, a.appointment_code, a.appointment_time, a.status
+        FROM appointments a
+        WHERE a.patient_id = ?
+          AND a.appointment_date = ?
+          AND a.status NOT IN ('cancelled','no-show')
+          AND (? = 0 OR a.id != ?)
+        LIMIT 1
+    ");
+    $dup_stmt->execute([$patient_id, $date, $exclude_id, $exclude_id]);
+    $dup = $dup_stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($dup) {
+        echo json_encode([
+            'status'    => 'ok',
+            'duplicate' => true,
+            'existing'  => [
+                'code'   => $dup['appointment_code'],
+                'time'   => date('h:i A', strtotime($dup['appointment_time'])),
+                'status' => ucfirst($dup['status']),
+            ],
+        ]);
+    } else {
+        echo json_encode(['status' => 'ok', 'duplicate' => false]);
+    }
+    exit();
+}
+
 // UPDATE APPOINTMENT STATUS
 if ($action === 'update_status') {
     $id     = intval($body['id'] ?? 0);

@@ -11,10 +11,11 @@ require_once '../../includes/auth.php';
 /** @var string $current_user_name */
 /** @var string $current_user_role */
 
-$page_title = 'Walk-in Registration';
-$error      = '';
-$success    = '';
-$new_appt   = null;
+$page_title        = 'Walk-in Registration';
+$error             = '';
+$success           = '';
+$new_appt          = null;
+$duplicate_warning = '';
 
 $services = sc_get('svc_walkin') ?? sc_set('svc_walkin', $conn->query(
     "SELECT id, service_name, price, duration_minutes FROM services WHERE is_active = TRUE ORDER BY service_name"
@@ -392,9 +393,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->closeCursor();
             }
 
+            // ── DUPLICATE GUARD ──────────────────────────────────────────────
+            // Warn (via $duplicate_warning) if this patient already has a
+            // non-cancelled appointment on the same date. We warn, not block,
+            // so staff can still proceed if it's intentional (two services).
+            $dup_chk = $conn->prepare("
+                SELECT appointment_code, appointment_time, status
+                FROM appointments
+                WHERE patient_id = ?
+                  AND appointment_date = ?
+                  AND status NOT IN ('cancelled','no-show')
+                LIMIT 1
+            ");
+            $dup_chk->execute([$patient_id, $appointment_date]);
+            $dup_row = $dup_chk->fetch(PDO::FETCH_ASSOC);
+            $dup_chk->closeCursor();
+            $duplicate_warning = $dup_row
+                ? 'Note: This patient already has appointment ' . $dup_row['appointment_code']
+                  . ' (' . ucfirst($dup_row['status']) . ') on this date at '
+                  . date('h:i A', strtotime($dup_row['appointment_time'])) . '.'
+                : '';
+
             // Create appointment
             $appt_code = generate_code($conn, 'appointments', 'APT');
-            $type      = 'walk-in';
+            $type      = ($appointment_date === date('Y-m-d')) ? 'walk-in' : 'scheduled';
             $status    = 'pending'; // Staff must click Confirm — never auto-confirmed
 
             $stmt2 = $conn->prepare("
@@ -458,10 +480,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ob_clean(); // Wipe any buffered warnings
                 header('Content-Type: application/json');
                 echo json_encode([
-                    'status'       => 'success',
-                    'message'      => $success,
-                    'appt'         => $new_appt,
-                    'is_returning' => $is_returning,
+                    'status'            => 'success',
+                    'message'           => $success,
+                    'appt'              => $new_appt,
+                    'is_returning'      => $is_returning,
+                    'duplicate_warning' => $duplicate_warning,
                 ]);
                 exit();
             }
@@ -600,6 +623,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['_ajax']) && $error) 
             <div>
             <?php if ($success && $new_appt): ?>
             <div class="alert alert-success"><i class="bi bi-check-circle-fill"></i> <?php echo e($success); ?></div>
+            <?php if ($duplicate_warning): ?>
+            <div class="alert alert-warning" style="display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;"><i class="bi bi-exclamation-triangle-fill" style="flex-shrink:0;margin-top:2px;"></i><span><?php echo e($duplicate_warning); ?></span></div>
+            <?php endif; ?>
             <div id="printSlip" style="margin-bottom:20px;">
                 <div class="slip-box">
                     <div class="slip-header">
@@ -639,21 +665,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['_ajax']) && $error) 
                     </div>
                     <div>
                         <div style="font-weight:700;font-size:0.9rem;color:var(--gray-900);">Patient Details</div>
-                        <div style="font-size:0.7rem;color:var(--gray-400);">Fill in the fields below to register a walk-in patient</div>
+                        <div style="font-size:0.7rem;color:var(--gray-400);">Search for a returning patient, or fill in the fields to register a new one</div>
                     </div>
                 </div>
                 <div class="card-body" style="padding:20px;">
-                    <form method="POST">
+                    <form method="POST" id="walkinStandaloneForm">
                     <?php echo csrf_field(); ?>
+                        <input type="hidden" name="existing_patient_id" id="standalone_existing_patient_id" value="">
+
+                        <!-- ── Returning Patient Search ──────────────────── -->
+                        <div style="margin-bottom:18px;padding:14px 16px;background:var(--gray-50);border:1.5px solid var(--gray-200);border-radius:10px;">
+                            <label style="font-size:0.78rem;font-weight:700;color:var(--gray-600);margin-bottom:7px;display:block;"><i class="bi bi-search"></i> Search Returning Patient <span style="font-weight:400;color:var(--gray-400);">(by name, phone, or code)</span></label>
+                            <div style="position:relative;">
+                                <input type="text" id="standalonePatientSearch" autocomplete="off" placeholder="e.g. Maria Santos or 0917…"
+                                    style="width:100%;padding:9px 14px 9px 36px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:0.85rem;background:var(--white);color:var(--gray-900);outline:none;transition:border 0.15s;"
+                                    oninput="standaloneSearchPatient(this.value)"
+                                    onfocus="this.style.borderColor='var(--primary)'" onblur="setTimeout(()=>this.style.borderColor='var(--gray-200)',200)">
+                                <i class="bi bi-search" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--gray-400);font-size:0.8rem;pointer-events:none;"></i>
+                            </div>
+                            <div id="standalonePatientResults" style="display:none;margin-top:6px;border:1.5px solid var(--gray-200);border-radius:8px;background:var(--white);overflow:hidden;box-shadow:0 4px 14px rgba(0,0,0,0.08);"></div>
+                            <div id="standaloneSelectedPatient" style="display:none;margin-top:8px;padding:10px 14px;background:var(--primary-bg);border:1.5px solid var(--blue-200);border-radius:8px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+                                <div style="display:flex;align-items:center;gap:8px;">
+                                    <i class="bi bi-person-check-fill" style="color:var(--primary);font-size:1rem;"></i>
+                                    <div>
+                                        <div id="standaloneSelectedName" style="font-weight:700;font-size:0.85rem;color:var(--gray-900);"></div>
+                                        <div id="standaloneSelectedMeta" style="font-size:0.72rem;color:var(--gray-500);"></div>
+                                    </div>
+                                </div>
+                                <button type="button" onclick="standaloneClearPatient()" style="background:none;border:none;cursor:pointer;color:var(--gray-400);font-size:1rem;padding:0;" title="Clear selection"><i class="bi bi-x-circle"></i></button>
+                            </div>
+                            <div id="standaloneNewBadge" style="display:none;margin-top:8px;padding:6px 12px;background:rgba(21,128,61,0.08);border:1.5px solid rgba(21,128,61,0.2);border-radius:8px;font-size:0.75rem;color:#15803d;font-weight:600;">
+                                <i class="bi bi-person-plus-fill"></i> New patient — a new record will be created
+                            </div>
+                        </div>
+
+                        <!-- ── Patient Name Fields ────────────────────────── -->
+                        <div id="standaloneNameFields">
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <label class="form-label">First Name <span style="color:var(--danger)">*</span></label>
-                                <input type="text" name="first_name" class="form-control" required autofocus>
+                                <input type="text" name="first_name" id="sf_first_name" class="form-control" required autofocus>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Last Name <span style="color:var(--danger)">*</span></label>
-                                <input type="text" name="last_name" class="form-control" required>
+                                <input type="text" name="last_name" id="sf_last_name" class="form-control" required>
                             </div>
+                        </div>
+                        </div>
+                        <div class="row g-3" style="margin-top:0;">
                             <div class="col-md-6">
                                 <?php
                                     $phone_field_name     = 'phone';
@@ -795,5 +854,96 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['_ajax']) && $error) 
     </div>
 </div>
 <?php include '../../includes/footer.php'; ?>
+
+<script>
+/* ── Standalone Walk-in Page — Returning Patient Search ─────────── */
+var _ssDebounce = null;
+var _ssSelected = false;
+
+function standaloneSearchPatient(q) {
+    clearTimeout(_ssDebounce);
+    var results = document.getElementById('standalonePatientResults');
+    var newBadge = document.getElementById('standaloneNewBadge');
+    if (q.length < 2) {
+        results.style.display = 'none';
+        if (!_ssSelected) newBadge.style.display = 'none';
+        return;
+    }
+    _ssDebounce = setTimeout(function () {
+        fetch('<?php echo BASE_URL; ?>modules/walkin/add.php?action=search_patient&q=' + encodeURIComponent(q))
+            .then(r => r.json())
+            .then(function (res) {
+                results.innerHTML = '';
+                if (!res.patients || res.patients.length === 0) {
+                    results.innerHTML = '<div style="padding:10px 14px;font-size:0.82rem;color:var(--gray-400);">No existing patient found — new record will be created.</div>';
+                    results.style.display = 'block';
+                    if (!_ssSelected) {
+                        newBadge.style.display = 'block';
+                        enableNameFields(true);
+                    }
+                    return;
+                }
+                res.patients.forEach(function (p) {
+                    var fullName = p.first_name + ' ' + p.last_name;
+                    var meta     = p.patient_code + (p.phone ? ' · ' + p.phone : '') + ' · ' + (p.appt_count || 0) + ' visit(s)';
+                    var row = document.createElement('div');
+                    row.style.cssText = 'padding:9px 14px;cursor:pointer;border-bottom:1px solid var(--gray-100);transition:background 0.1s;font-size:0.83rem;';
+                    row.innerHTML = '<div style="font-weight:700;color:var(--gray-900);">' + fullName + '</div><div style="font-size:0.72rem;color:var(--gray-400);">' + meta + '</div>';
+                    row.onmouseover = function () { this.style.background = 'var(--gray-50)'; };
+                    row.onmouseout  = function () { this.style.background = ''; };
+                    row.onclick = function () { standaloneSelectPatient(p); };
+                    results.appendChild(row);
+                });
+                results.style.display = 'block';
+                newBadge.style.display = 'none';
+            })
+            .catch(function () {
+                results.style.display = 'none';
+            });
+    }, 280);
+}
+
+function standaloneSelectPatient(p) {
+    _ssSelected = true;
+    document.getElementById('standalone_existing_patient_id').value = p.id;
+    document.getElementById('sf_first_name').value = p.first_name;
+    document.getElementById('sf_last_name').value  = p.last_name;
+
+    var fullName = p.first_name + ' ' + p.last_name;
+    var meta     = p.patient_code + (p.phone ? ' · ' + p.phone : '') + ' · ' + (p.appt_count || 0) + ' visit(s)';
+    document.getElementById('standaloneSelectedName').textContent = fullName;
+    document.getElementById('standaloneSelectedMeta').textContent = meta;
+    document.getElementById('standaloneSelectedPatient').style.display = 'flex';
+    document.getElementById('standalonePatientResults').style.display  = 'none';
+    document.getElementById('standaloneNewBadge').style.display        = 'none';
+    document.getElementById('standalonePatientSearch').value           = '';
+
+    // Lock the name fields — patient is selected
+    enableNameFields(false);
+}
+
+function standaloneClearPatient() {
+    _ssSelected = false;
+    document.getElementById('standalone_existing_patient_id').value    = '';
+    document.getElementById('standaloneSelectedPatient').style.display = 'none';
+    document.getElementById('standaloneNewBadge').style.display        = 'none';
+    document.getElementById('sf_first_name').value = '';
+    document.getElementById('sf_last_name').value  = '';
+    enableNameFields(true);
+    document.getElementById('standalonePatientSearch').focus();
+}
+
+function enableNameFields(on) {
+    var fields = ['sf_first_name', 'sf_last_name'];
+    fields.forEach(function (id) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.readOnly = !on;
+        el.style.background = on ? '' : 'var(--gray-50)';
+        el.style.color      = on ? '' : 'var(--gray-500)';
+        el.required = on;
+    });
+}
+</script>
 </body>
 </html>

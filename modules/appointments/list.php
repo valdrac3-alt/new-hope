@@ -28,6 +28,7 @@ $status_filter = $_GET['status'] ?? '';
 $date_filter   = $_GET['date'] ?? '';
 $doctor_filter = intval($_GET['doctor_id'] ?? 0);
 $search        = trim($_GET['search'] ?? '');
+$type_filter   = $_GET['type'] ?? '';
 
 // Pre-load doctors for filter dropdown
 $all_doctors = sc_get('doc_list') ?? sc_set('doc_list',
@@ -37,6 +38,9 @@ $all_doctors = sc_get('doc_list') ?? sc_set('doc_list',
 // Whitelist status values — never interpolate raw user input into SQL
 $allowed_statuses = ['pending', 'confirmed', 'completed', 'cancelled', 'no-show'];
 if (!in_array($status_filter, $allowed_statuses)) $status_filter = '';
+// Whitelist type values
+$allowed_types = ['walk-in', 'scheduled'];
+if (!in_array($type_filter, $allowed_types)) $type_filter = '';
 // Validate date format (YYYY-MM-DD) — reject anything that doesn't match
 if ($date_filter && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date_filter)) $date_filter = '';
 
@@ -55,6 +59,10 @@ if ($date_filter) {
 if ($doctor_filter) {
     $where    .= " AND a.doctor_id = ?";
     $params[]  = intval($doctor_filter);
+}
+if ($type_filter) {
+    $where    .= " AND a.type = ?";
+    $params[]  = $type_filter;
 }
 if ($search) {
     $like      = '%' . $search . '%';
@@ -82,6 +90,7 @@ $filter_parts = [];
 if ($status_filter) $filter_parts[] = 'status='    . urlencode($status_filter);
 if ($date_filter)   $filter_parts[] = 'date='      . urlencode($date_filter);
 if ($doctor_filter) $filter_parts[] = 'doctor_id=' . $doctor_filter;
+if ($type_filter)   $filter_parts[] = 'type='      . urlencode($type_filter);
 if ($search)        $filter_parts[] = 'search='    . urlencode($search);
 $filter_qs = $filter_parts ? implode('&', $filter_parts) . '&' : '';
 
@@ -171,7 +180,7 @@ $list_stmt->closeCursor();
             ];
             foreach ($tab_statuses as $val => $tab):
                 $isActive = ($status_filter === $val);
-                $href = 'list.php?' . ($val ? 'status=' . $val . '&' : '') . ($search ? 'search=' . urlencode($search) . '&' : '') . ($doctor_filter ? 'doctor_id=' . $doctor_filter . '&' : '');
+                $href = 'list.php?' . ($val ? 'status=' . $val . '&' : '') . ($date_filter ? 'date=' . urlencode($date_filter) . '&' : '') . ($type_filter ? 'type=' . urlencode($type_filter) . '&' : '') . ($search ? 'search=' . urlencode($search) . '&' : '') . ($doctor_filter ? 'doctor_id=' . $doctor_filter . '&' : '');
             ?>
             <a href="<?php echo $href; ?>" style="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border-radius:20px;font-size:0.76rem;font-weight:700;text-decoration:none;transition:all 0.15s;
                 border:1.5px solid <?php echo $isActive ? $tab['color'] : 'var(--gray-200)'; ?>;
@@ -184,9 +193,33 @@ $list_stmt->closeCursor();
             <?php endforeach; ?>
         </div>
 
+        <!-- ── Type Filter Pills ────────────────────────────────── -->
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;align-items:center;">
+            <span style="font-size:0.72rem;color:var(--gray-400);font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-right:2px;">Type:</span>
+            <?php
+            $type_opts = [
+                ''          => ['label'=>'All Types',       'icon'=>'bi-grid'],
+                'walk-in'   => ['label'=>'Walk-in',          'icon'=>'bi-person-walking'],
+                'scheduled' => ['label'=>'Advance Booking',  'icon'=>'bi-calendar-check'],
+            ];
+            foreach ($type_opts as $tval => $topt):
+                $tActive = ($type_filter === $tval);
+                $tHref   = 'list.php?' . ($tval ? 'type=' . $tval . '&' : '') . ($status_filter ? 'status=' . urlencode($status_filter) . '&' : '') . ($date_filter ? 'date=' . urlencode($date_filter) . '&' : '') . ($search ? 'search=' . urlencode($search) . '&' : '') . ($doctor_filter ? 'doctor_id=' . $doctor_filter . '&' : '');
+            ?>
+            <a href="<?php echo $tHref; ?>" style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;font-size:0.75rem;font-weight:700;text-decoration:none;transition:all 0.15s;
+                border:1.5px solid <?php echo $tActive ? 'var(--primary)' : 'var(--gray-200)'; ?>;
+                background:<?php echo $tActive ? 'var(--primary-bg)' : 'var(--white)'; ?>;
+                color:<?php echo $tActive ? 'var(--primary)' : 'var(--gray-500)'; ?>;">
+                <i class="bi <?php echo $topt['icon']; ?>"></i>
+                <?php echo $topt['label']; ?>
+            </a>
+            <?php endforeach; ?>
+        </div>
+
         <!-- ── Filter Bar ───────────────────────────────────────── -->
         <form method="GET" style="background:var(--white);border:var(--border);border-radius:12px;padding:12px 16px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,0.04);">
             <?php if ($status_filter): ?><input type="hidden" name="status" value="<?php echo htmlspecialchars($status_filter); ?>"><?php endif; ?>
+            <?php if ($type_filter): ?><input type="hidden" name="type" value="<?php echo htmlspecialchars($type_filter); ?>"><?php endif; ?>
             <div class="mobile-filter-bar" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
                 <div style="position:relative;flex:1;min-width:200px;">
                     <i class="bi bi-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--gray-400);font-size:0.82rem;"></i>
@@ -266,6 +299,11 @@ $list_stmt->closeCursor();
                             <!-- Patient -->
                             <td data-label="Patient" style="padding:13px 16px;">
                                 <a href="<?php echo BASE_URL; ?>modules/patients/view.php?id=<?php echo $a['patient_id']; ?>" style="font-size:0.85rem;font-weight:700;color:var(--gray-900);text-decoration:none;" onmouseover="this.style.color='var(--primary)'" onmouseout="this.style.color='var(--gray-900)'"><?php echo htmlspecialchars(ucwords(strtolower($a['patient_name']))); ?></a>
+                                <?php if (($a['type'] ?? 'walk-in') === 'walk-in'): ?>
+                                <span style="display:inline-flex;align-items:center;gap:3px;margin-left:5px;padding:1px 6px;border-radius:20px;font-size:0.67rem;font-weight:700;background:rgba(37,99,235,0.08);color:#2563eb;border:1px solid rgba(37,99,235,0.2);vertical-align:middle;"><i class="bi bi-person-walking" style="font-size:0.62rem;"></i>Walk-in</span>
+                                <?php else: ?>
+                                <span style="display:inline-flex;align-items:center;gap:3px;margin-left:5px;padding:1px 6px;border-radius:20px;font-size:0.67rem;font-weight:700;background:rgba(13,110,110,0.08);color:var(--primary);border:1px solid rgba(13,110,110,0.2);vertical-align:middle;"><i class="bi bi-calendar-check" style="font-size:0.62rem;"></i>Booked</span>
+                                <?php endif; ?>
                             </td>
                             <!-- Service -->
                             <td data-label="Service" style="padding:13px 16px;">
@@ -329,6 +367,11 @@ $list_stmt->closeCursor();
                                        style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:7px;background:var(--gray-50);color:var(--gray-500);border:1.5px solid var(--gray-200);text-decoration:none;font-size:0.8rem;transition:all 0.12s;" title="Print Slip" aria-label="Print appointment slip">
                                         <i class="bi bi-printer" aria-hidden="true"></i>
                                     </a>
+                                    <!-- Reschedule / Edit -->
+                                    <button onclick="openRescheduleModal(<?php echo $a['id']; ?>)"
+                                       style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:7px;background:var(--primary-bg);color:var(--primary);border:1.5px solid var(--blue-200);cursor:pointer;font-size:0.8rem;transition:all 0.12s;" title="Reschedule / Edit" aria-label="Reschedule appointment">
+                                        <i class="bi bi-calendar-week" aria-hidden="true"></i>
+                                    </button>
                                     <!-- Edit Status -->
                                     <button onclick="updateStatus(<?php echo $a['id']; ?>, this)"
                                        style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:7px;background:var(--gray-50);color:var(--gray-500);border:1.5px solid var(--gray-200);cursor:pointer;font-size:0.8rem;transition:all 0.12s;" title="Update Status" aria-label="Update appointment status">
@@ -487,10 +530,234 @@ $list_stmt->closeCursor();
     </div>
 </div>
 
+<!-- ── Reschedule / Edit Appointment Modal ─────────────────── -->
+<div class="modal fade" id="rescheduleModal" tabindex="-1" aria-labelledby="rescheduleModalLabel">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header" style="border-bottom:var(--border);padding:16px 20px;">
+                <h6 class="modal-title" id="rescheduleModalLabel" style="font-weight:700;font-size:0.95rem;display:flex;align-items:center;gap:8px;">
+                    <i class="bi bi-calendar-week" style="color:var(--primary);"></i>
+                    Reschedule / Edit Appointment
+                </h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" style="padding:20px;">
+                <div id="rescheduleAlert" style="display:none;padding:10px 14px;border-radius:8px;margin-bottom:14px;font-size:0.83rem;"></div>
+
+                <!-- Patient info (readonly) -->
+                <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--gray-50);border:1.5px solid var(--gray-200);border-radius:8px;margin-bottom:16px;">
+                    <i class="bi bi-person-fill" style="color:var(--primary);font-size:1.1rem;"></i>
+                    <div>
+                        <div id="rsPatientName" style="font-weight:700;font-size:0.87rem;color:var(--gray-900);"></div>
+                        <div id="rsApptCode"   style="font-size:0.72rem;color:var(--gray-400);font-family:monospace;"></div>
+                    </div>
+                    <span id="rsStatusBadge" style="margin-left:auto;font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:20px;"></span>
+                </div>
+
+                <input type="hidden" id="rs_appt_id">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label" style="font-size:0.8rem;font-weight:700;">New Date <span style="color:var(--danger);">*</span></label>
+                        <input type="date" id="rs_date" class="form-control" min="<?php echo date('Y-m-d'); ?>" onchange="rsLoadSlots()">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" style="font-size:0.8rem;font-weight:700;">New Time <span style="color:var(--danger);">*</span></label>
+                        <select id="rs_time" class="form-select">
+                            <option value="">Select date first…</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" style="font-size:0.8rem;font-weight:700;">Service</label>
+                        <select id="rs_service" class="form-select">
+                            <option value="">— No change —</option>
+                            <?php
+                            $svc_list = sc_get('svc_walkin') ?? sc_set('svc_walkin',
+                                $conn->query("SELECT id, service_name, price FROM services WHERE is_active = TRUE ORDER BY service_name")
+                                     ->fetchAll(PDO::FETCH_ASSOC), 300);
+                            foreach ($svc_list as $sv): ?>
+                            <option value="<?php echo $sv['id']; ?>"><?php echo e($sv['service_name']); ?> — ₱<?php echo number_format($sv['price'], 2); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" style="font-size:0.8rem;font-weight:700;">Doctor</label>
+                        <select id="rs_doctor" class="form-select" onchange="rsLoadSlots()">
+                            <option value="">Any Available Doctor</option>
+                            <?php foreach ($all_doctors as $d): ?>
+                            <option value="<?php echo $d['id']; ?>"><?php echo e($d['full_name']); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" style="font-size:0.8rem;font-weight:700;">Notes / Chief Complaint</label>
+                        <textarea id="rs_notes" class="form-control" rows="2" placeholder="Update notes if needed…"></textarea>
+                    </div>
+                </div>
+
+                <!-- Slot status notice -->
+                <div id="rsSlotNotice" style="display:none;margin-top:12px;padding:8px 12px;border-radius:7px;font-size:0.78rem;"></div>
+            </div>
+            <div class="modal-footer" style="border-top:var(--border);padding:12px 20px;">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-sm btn-primary" id="rsSubmitBtn" onclick="doReschedule()">
+                    <i class="bi bi-calendar-check"></i> Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <?php include '../../includes/footer.php'; ?>
 <script>
-var statusModal     = new bootstrap.Modal(document.getElementById('statusModal'));
-var deleteApptModal = new bootstrap.Modal(document.getElementById('deleteApptModal'));
+var statusModal      = new bootstrap.Modal(document.getElementById('statusModal'));
+var deleteApptModal  = new bootstrap.Modal(document.getElementById('deleteApptModal'));
+var rescheduleModal  = new bootstrap.Modal(document.getElementById('rescheduleModal'));
+
+/* ── Reschedule / Edit Modal ─────────────────────────────── */
+function openRescheduleModal(apptId) {
+    document.getElementById('rescheduleAlert').style.display = 'none';
+    document.getElementById('rsSlotNotice').style.display    = 'none';
+    document.getElementById('rs_appt_id').value = apptId;
+    document.getElementById('rsSubmitBtn').disabled = false;
+
+    fetch(_baseUrl + 'api/appointments.php?action=get_appointment&id=' + apptId)
+        .then(r => r.json())
+        .then(function (res) {
+            if (res.status !== 'ok') { alert(res.message || 'Failed to load appointment.'); return; }
+            var a = res.appointment;
+            document.getElementById('rsPatientName').textContent = a.patient_name || '--';
+            document.getElementById('rsApptCode').textContent   = a.appointment_code || '';
+            var statusColors = {
+                pending:   ['var(--warning-bg)','var(--warning)'],
+                confirmed: ['var(--blue-50)','#1d4ed8'],
+                completed: ['var(--success-bg)','var(--success)'],
+                cancelled: ['var(--danger-bg)','var(--danger)'],
+                'no-show': ['var(--gray-100)','var(--gray-500)'],
+            };
+            var sc = statusColors[a.status] || ['var(--gray-100)','var(--gray-500)'];
+            var badge = document.getElementById('rsStatusBadge');
+            badge.textContent = a.status ? a.status.charAt(0).toUpperCase() + a.status.slice(1) : '';
+            badge.style.background = sc[0]; badge.style.color = sc[1];
+
+            // Prefill fields
+            document.getElementById('rs_date').value  = a.appointment_date || '';
+            document.getElementById('rs_notes').value = a.notes || '';
+            // Service
+            var svcSel = document.getElementById('rs_service');
+            svcSel.value = a.service_id || '';
+            // Doctor
+            var docSel = document.getElementById('rs_doctor');
+            docSel.value = a.doctor_id || '';
+
+            // Load slots for the current date
+            rsLoadSlots(a.appointment_time);
+            rescheduleModal.show();
+        })
+        .catch(function () { alert('Network error. Please try again.'); });
+}
+
+function rsLoadSlots(preselect) {
+    var date     = document.getElementById('rs_date').value;
+    var doctorId = document.getElementById('rs_doctor').value;
+    var timeSel  = document.getElementById('rs_time');
+    var notice   = document.getElementById('rsSlotNotice');
+
+    if (!date) { timeSel.innerHTML = '<option value="">Pick a date first…</option>'; return; }
+    timeSel.innerHTML = '<option value="">Loading slots…</option>';
+    notice.style.display = 'none';
+
+    var url = _baseUrl + 'api/appointments.php?action=get_slots&date=' + date + (doctorId ? '&doctor_id=' + doctorId : '');
+    fetch(url).then(r => r.json()).then(function (res) {
+        timeSel.innerHTML = '';
+        if (!res.slots || res.slots.length === 0) {
+            timeSel.innerHTML = '<option value="">No slots available</option>';
+            notice.style.cssText = 'display:block;background:var(--danger-bg);color:var(--danger);border:1px solid var(--danger-border);';
+            notice.textContent = res.message || 'No available slots on this date.';
+            return;
+        }
+        var availCount = 0;
+        res.slots.forEach(function (s) {
+            var opt = document.createElement('option');
+            opt.value = s.time_24;
+            opt.textContent = s.time_12 + (s.available ? '' : ' (booked)');
+            opt.disabled = !s.available;
+            if (preselect && s.time_24 === preselect.slice(0,5)) opt.selected = true;
+            if (s.available) availCount++;
+            timeSel.appendChild(opt);
+        });
+        if (availCount > 0) {
+            notice.style.cssText = 'display:block;background:var(--success-bg);color:var(--success);border:1px solid rgba(21,128,61,0.2);';
+            notice.textContent = availCount + ' slot' + (availCount===1?'':'s') + ' available on this date.';
+            notice.style.display = 'block';
+        }
+    }).catch(function () {
+        timeSel.innerHTML = '<option value="">Error loading slots</option>';
+    });
+}
+
+function rsShowAlert(type, msg) {
+    var el = document.getElementById('rescheduleAlert');
+    var styles = {
+        danger:  'background:var(--danger-bg);color:var(--danger);border:1.5px solid var(--danger-border);',
+        success: 'background:var(--success-bg);color:var(--success);border:1.5px solid rgba(21,128,61,0.2);',
+        warning: 'background:var(--warning-bg);color:var(--warning);border:1.5px solid var(--warning-border);',
+    };
+    el.style.cssText = (styles[type] || styles.danger) + 'padding:10px 14px;border-radius:8px;margin-bottom:14px;font-size:0.83rem;';
+    el.innerHTML = msg;
+    el.style.display = 'block';
+}
+
+function doReschedule() {
+    var id      = document.getElementById('rs_appt_id').value;
+    var date    = document.getElementById('rs_date').value;
+    var time    = document.getElementById('rs_time').value;
+    var service = document.getElementById('rs_service').value;
+    var doctor  = document.getElementById('rs_doctor').value;
+    var notes   = document.getElementById('rs_notes').value;
+    var btn     = document.getElementById('rsSubmitBtn');
+
+    if (!date) { rsShowAlert('danger', 'Please select a date.'); return; }
+    if (!time) { rsShowAlert('danger', 'Please select a time slot.'); return; }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Saving…';
+
+    fetch(_baseUrl + 'api/appointments.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: 'reschedule',
+            id: parseInt(id),
+            appointment_date: date,
+            appointment_time: time,
+            service_id: service ? parseInt(service) : null,
+            doctor_id:  doctor  ? parseInt(doctor)  : null,
+            notes: notes,
+            _csrf: getCsrfToken(),
+        }),
+    })
+    .then(r => r.json())
+    .then(function (res) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-calendar-check"></i> Save Changes';
+        if (res.status === 'success') {
+            if (res.duplicate_warning) {
+                rsShowAlert('warning', '<i class="bi bi-exclamation-triangle-fill"></i> ' + res.duplicate_warning + '<br>Appointment rescheduled successfully.');
+                setTimeout(function () { rescheduleModal.hide(); location.reload(); }, 3000);
+            } else {
+                rescheduleModal.hide();
+                location.reload();
+            }
+        } else {
+            rsShowAlert('danger', '<i class="bi bi-x-circle-fill"></i> ' + (res.message || 'Reschedule failed.'));
+        }
+    })
+    .catch(function () {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-calendar-check"></i> Save Changes';
+        rsShowAlert('danger', 'Network error. Please try again.');
+    });
+}
 var deleteApptId    = null;
 
 function updateStatus(id, btn) {
@@ -991,7 +1258,7 @@ function submitWalkin() {
                 if (placeholder) placeholder.closest('tr').remove();
                 var cBtn = '<button style="display:inline-flex;align-items:center;gap:4px;padding:5px 12px;min-height:30px;border-radius:8px;background:var(--blue-50);color:var(--primary);border:1.5px solid var(--blue-200);font-size:0.75rem;font-weight:700;cursor:pointer;" onclick="openConfirmModal(' + (appt.appt_id||0) + ',\'' + (appt.appt_code||'').replace(/'/g,"\\x27") + '\',\'' + (appt.patient_name||'').replace(/'/g,"\\x27") + '\')"><i class="bi bi-check-lg"></i> Confirm</button>';
                 var pBtn = '<a href="' + _baseUrl + 'modules/print/appointment_slip.php?id=' + (appt.appt_id||'') + '" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:7px;background:var(--gray-50);color:var(--gray-500);border:1.5px solid var(--gray-200);text-decoration:none;font-size:0.8rem;"><i class="bi bi-printer"></i></a>';
-                var eBtn = '<button style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:7px;background:var(--gray-50);color:var(--gray-500);border:1.5px solid var(--gray-200);cursor:pointer;font-size:0.8rem;"><i class="bi bi-pencil-square"></i></button>';
+                var eBtn = '<button style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:7px;background:var(--primary-bg);color:var(--primary);border:1.5px solid var(--blue-200);cursor:pointer;font-size:0.8rem;" onclick="openRescheduleModal(' + (appt.appt_id||0) + ')" title="Reschedule / Edit"><i class="bi bi-calendar-week"></i></button>';
                 var dBtn = '<button style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:7px;background:var(--danger-bg);color:var(--danger);border:1.5px solid var(--danger-border);cursor:pointer;font-size:0.8rem;" onclick="confirmDeleteAppt(' + (appt.appt_id||0) + ',\'' + (appt.appt_code||'').replace(/'/g,"\\x27") + '\')"><i class="bi bi-trash"></i></button>';
                 var tr = document.createElement('tr');
                 tr.style.cssText = 'background:var(--warning-bg);transition:background 3s ease;';
@@ -1011,6 +1278,9 @@ function submitWalkin() {
             var toastMsg   = '<strong>' + (appt.patient_name||'') + '</strong> (' + (appt.patient_code||'') + ')<br>';
             toastMsg += isReturning ? 'Existing record used - no duplicate created.<br>' : '';
             toastMsg += 'Appt: <strong>' + (appt.appt_code||'') + '</strong> - ' + dateLabel + ' at <strong>' + timeLabel + '</strong>';
+            if (res.duplicate_warning) {
+                toastMsg += '<br><span style="color:var(--warning);font-weight:700;"><i class="bi bi-exclamation-triangle-fill"></i> ' + res.duplicate_warning + '</span>';
+            }
             document.getElementById('walkinToastTitle').textContent = toastTitle;
             document.getElementById('walkinToastMsg').innerHTML     = toastMsg;
             document.getElementById('walkinToast').style.display    = 'block';
