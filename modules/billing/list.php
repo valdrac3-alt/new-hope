@@ -29,12 +29,14 @@ if ($status_filter) {
 }
 if ($search) {
     $like          = '%' . $search . '%';
-    $where        .= " AND (p.first_name LIKE ? OR p.last_name LIKE ? OR b.bill_code LIKE ? OR p.patient_code LIKE ?)";
+    $where        .= " AND (p.first_name LIKE ? OR p.last_name LIKE ? OR b.bill_code LIKE ? OR p.patient_code LIKE ? OR p.phone LIKE ? OR CONCAT(p.first_name,' ',p.last_name) LIKE ?)";
     $params[]      = $like;
     $params[]      = $like;
     $params[]      = $like;
     $params[]      = $like;
-    $param_types  .= 'ssss';
+    $params[]      = $like;
+    $params[]      = $like;
+    $param_types  .= 'ssssss';
 }
 if ($date_from) {
     $where        .= " AND DATE(b.created_at) >= ?";
@@ -55,7 +57,7 @@ $count_sql  = "SELECT COUNT(*) as c FROM bills b LEFT JOIN patients p ON b.patie
 $count_stmt = $conn->prepare($count_sql);
 $count_stmt->execute($params ?: []);
 $total_count = (int)$count_stmt->fetch(PDO::FETCH_ASSOC)['c'];
-$count_stmt->close();
+$count_stmt->closeCursor();
 
 $total_pages = max(1, ceil($total_count / $per_page));
 $page        = min($page, $total_pages);
@@ -86,7 +88,7 @@ $list_sql  = "
 $list_stmt = $conn->prepare($list_sql);
 $list_stmt->execute($params ?: []);
 $bills = $list_stmt->fetchAll(PDO::FETCH_ASSOC);
-$list_stmt->close();
+$list_stmt->closeCursor();
 
 $totals = $conn->query("
     SELECT

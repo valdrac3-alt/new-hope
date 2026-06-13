@@ -18,11 +18,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_id'])) {
         $nr = $conn->prepare("SELECT CONCAT(first_name,' ',last_name) as n FROM patients WHERE id = ? LIMIT 1");
         $nr->execute([$del_id]);
         $pname = $nr->fetch(PDO::FETCH_ASSOC)['n'] ?? 'Unknown';
-        $nr->close();
+        $nr->closeCursor();
 
         $stmt = $conn->prepare("UPDATE patients SET is_active = FALSE WHERE id = ?");
         $stmt->execute([$del_id]);
-        $stmt->close();
+        $stmt->closeCursor();
 
         log_action($conn, $current_user_id, $current_user_name, 'Archived Patient', 'patients', $del_id, "Soft-deleted (archived): $pname — all records preserved.");
     }
@@ -41,10 +41,15 @@ $param_types = '';
 
 $base_where = "WHERE p.is_active = TRUE";
 if ($search) {
-    $base_where .= " AND (p.first_name LIKE ? OR p.last_name LIKE ? OR p.patient_code LIKE ? OR p.phone LIKE ?)";
+    $base_where .= " AND (
+        p.first_name LIKE ? OR p.last_name LIKE ? OR p.middle_name LIKE ?
+        OR p.patient_code LIKE ? OR p.phone LIKE ? OR p.email LIKE ?
+        OR CONCAT(p.first_name,' ',p.last_name) LIKE ?
+        OR CONCAT(p.first_name,' ',COALESCE(p.middle_name,''),' ',p.last_name) LIKE ?
+    )";
     $like = '%' . $search . '%';
-    $params      = [$like, $like, $like, $like];
-    $param_types = 'ssss';
+    $params      = [$like, $like, $like, $like, $like, $like, $like, $like];
+    $param_types = 'ssssssss';
 }
 
 // COUNT query
@@ -52,7 +57,7 @@ $count_sql  = "SELECT COUNT(*) as c FROM patients p $base_where";
 $count_stmt = $conn->prepare($count_sql);
 $count_stmt->execute($params);
 $total_count = (int)$count_stmt->fetch(PDO::FETCH_ASSOC)['c'];
-$count_stmt->close();
+$count_stmt->closeCursor();
 
 $total_pages = max(1, ceil($total_count / $per_page));
 $page        = min($page, $total_pages);
@@ -73,7 +78,7 @@ $list_sql  = "
 $list_stmt = $conn->prepare($list_sql);
 $list_stmt->execute($params);
 $patients = $list_stmt->fetchAll(PDO::FETCH_ASSOC);
-$list_stmt->close();
+$list_stmt->closeCursor();
 
 // Count archived patients for the badge
 $archived_count = (int)$conn->query("SELECT COUNT(*) as c FROM patients WHERE is_active = FALSE")->fetch(PDO::FETCH_ASSOC)['c'];
@@ -103,7 +108,7 @@ $archived_count = (int)$conn->query("SELECT COUNT(*) as c FROM patients WHERE is
 
         <form method="GET" class="mb-3">
             <div class="input-group" style="max-width:400px;">
-                <input type="text" name="search" class="form-control" placeholder="Search by name, code, or phone..." value="<?php echo htmlspecialchars($search); ?>">
+                <input type="text" name="search" class="form-control" placeholder="Search by name, email, phone, or code..." value="<?php echo htmlspecialchars($search); ?>">
                 <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-search"></i></button>
                 <?php if ($search): ?><a href="list.php" class="btn btn-outline-danger">Clear</a><?php endif; ?>
             </div>

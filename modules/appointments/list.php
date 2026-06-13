@@ -66,7 +66,9 @@ if ($type_filter) {
 }
 if ($search) {
     $like      = '%' . $search . '%';
-    $where    .= " AND (p.first_name LIKE ? OR p.last_name LIKE ? OR a.appointment_code LIKE ? OR CONCAT(p.first_name,' ',p.last_name) LIKE ?)";
+    $where    .= " AND (p.first_name LIKE ? OR p.last_name LIKE ? OR a.appointment_code LIKE ? OR CONCAT(p.first_name,' ',p.last_name) LIKE ? OR p.phone LIKE ? OR p.patient_code LIKE ?)";
+    $params[]  = $like;
+    $params[]  = $like;
     $params[]  = $like;
     $params[]  = $like;
     $params[]  = $like;
