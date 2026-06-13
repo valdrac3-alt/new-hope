@@ -15,12 +15,12 @@ if (isset($_GET['toggle']) && isset($_GET['uid'])) {
         $stmt = $conn->prepare("SELECT is_active FROM users WHERE id = ? LIMIT 1");
         $stmt->execute([$uid]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
-        $stmt->closeCursor();
+        $stmt->close();
         if ($user) {
             $new_status = $user['is_active'] ? 'FALSE' : 'TRUE';
             $stmt2 = $conn->prepare("UPDATE users SET is_active = CAST(? AS boolean) WHERE id = ?");
             $stmt2->execute([$new_status, $uid]);
-            $stmt2->closeCursor();
+            $stmt2->close();
             $label = $new_status ? 'Activated User' : 'Deactivated User';
             log_action($conn, $current_user_id, $current_user_name, $label, 'users', $uid);
         }

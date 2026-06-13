@@ -101,7 +101,29 @@ function initPage() {
         sel.addEventListener('change', function () { this.closest('form').submit(); });
     });
 
-    // 5. BACK-TO-TOP — disabled (button removed per design preference)
+    // 5. BACK-TO-TOP
+    if (!_bttEl) {
+        _bttEl = document.createElement('button');
+        _bttEl.id = 'back-to-top';
+        _bttEl.innerHTML = '<i class="bi bi-arrow-up"></i>';
+        _bttEl.title = 'Back to top';
+        _bttEl.setAttribute('aria-label', 'Back to top');
+        document.body.appendChild(_bttEl);
+        _bttEl.addEventListener('click', function () {
+            var el = document.querySelector('.main-content');
+            (el || window).scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    }
+    var scrollEl = document.querySelector('.main-content') || window;
+    if (_scrollHandler) {
+        scrollEl.removeEventListener('scroll', _scrollHandler);
+        window.removeEventListener('scroll', _scrollHandler);
+    }
+    _scrollHandler = debounce(function () {
+        var top = (scrollEl === window) ? window.scrollY : scrollEl.scrollTop;
+        _bttEl.classList.toggle('btt-visible', top > 300);
+    }, 50);
+    scrollEl.addEventListener('scroll', _scrollHandler, { passive: true });
 
     // 6. SEARCH HINT
     var searchEl = document.querySelector('input[name="search"], input[type="search"]');

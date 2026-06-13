@@ -19,13 +19,13 @@ if (isset($_GET['toggle']) && isset($_GET['sid'])) {
         $stmt = $conn->prepare("SELECT is_active, service_name FROM services WHERE id = ? LIMIT 1");
         $stmt->execute([$sid]);
         $svc = $stmt->fetch(PDO::FETCH_ASSOC);
-        $stmt->closeCursor();
+        $stmt->close();
 
         if ($svc) {
             $new_status = $svc['is_active'] ? 'FALSE' : 'TRUE';
             $stmt2 = $conn->prepare("UPDATE services SET is_active = CAST(? AS boolean) WHERE id = ?");
             $stmt2->execute([$new_status, $sid]);
-            $stmt2->closeCursor();
+            $stmt2->close();
             $label = $new_status ? 'Activated Service' : 'Deactivated Service';
             log_action($conn, $current_user_id, $current_user_name, $label, 'services', $sid, "Service: " . $svc['service_name']);
         }
@@ -54,7 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $chk = $conn->prepare("SELECT id FROM services WHERE service_name = ? LIMIT 1");
         $chk->execute([$service_name]);
         $chk->rowCount() > 0 ? $dup = true : $dup = false;
-        $chk->closeCursor();
+        $chk->close();
 
         if ($dup) {
             $error = "A service named \"" . e($service_name) . "\" already exists.";
@@ -65,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             );
             $stmt->execute([$service_name, $description, $duration, $price, $is_active]);
             $new_id = $conn->lastInsertId();
-            $stmt->closeCursor();
+            $stmt->close();
             log_action($conn, $current_user_id, $current_user_name, 'Added Service', 'services', $new_id, "Service: $service_name");
             $success = "Service \"" . e($service_name) . "\" added successfully.";
         }
@@ -95,7 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $chk = $conn->prepare("SELECT id FROM services WHERE service_name = ? AND id != ? LIMIT 1");
         $chk->execute([$service_name, $sid]);
         $chk->rowCount() > 0 ? $dup = true : $dup = false;
-        $chk->closeCursor();
+        $chk->close();
 
         if ($dup) {
             $error = "Another service named \"" . e($service_name) . "\" already exists.";
@@ -106,7 +106,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                  WHERE id = ?"
             );
             $stmt->execute([$service_name, $description, $duration, $price, $is_active, $sid]);
-            $stmt->closeCursor();
+            $stmt->close();
             log_action($conn, $current_user_id, $current_user_name, 'Updated Service', 'services', $sid, "Service: $service_name");
             $success = "Service \"" . e($service_name) . "\" updated successfully.";
         }

@@ -224,21 +224,16 @@ if (isset($_GET['action']) && $_GET['action']==='search_patient') {
     if (strlen($q) < 2) { echo json_encode(['status'=>'ok','patients'=>[]]); exit(); }
     $like = '%' . $q . '%';
     $res = $conn->prepare("
-        SELECT id, patient_code, first_name, middle_name, last_name, phone, email,
+        SELECT id, patient_code, first_name, last_name, phone,
                (SELECT COUNT(*) FROM appointments WHERE patient_id=patients.id) as appt_count
         FROM patients
         WHERE CONCAT(first_name,' ',last_name) LIKE ?
-           OR CONCAT(first_name,' ',COALESCE(middle_name,''),' ',last_name) LIKE ?
-           OR first_name LIKE ?
-           OR last_name LIKE ?
-           OR middle_name LIKE ?
            OR phone LIKE ?
-           OR email LIKE ?
            OR patient_code LIKE ?
         ORDER BY last_name, first_name
         LIMIT 8
     ");
-    $res->execute([$like, $like, $like, $like, $like, $like, $like, $like]);
+    $res->execute([$like, $like, $like]);
     $patients = $res->fetchAll(PDO::FETCH_ASSOC);
     echo json_encode(['status'=>'ok','patients'=>$patients]);
     exit();
@@ -296,6 +291,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $today            = date('Y-m-d');
     $appointment_date = (!empty($appointment_date) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $appointment_date)) ? $appointment_date : $today;
     $is_today_appt    = ($appointment_date === $today);
+    // Phone is required for future bookings (needed for reminders)
+    if (!$is_today_appt && empty($phone)) {
+        $error = 'Phone number is required for advance bookings (used for appointment reminders).';
+    }
     // Prefer selected_time (slot picker) over manual_time
     $slot_input = !empty($selected_time) ? $selected_time : $manual_time;
 
@@ -722,10 +721,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['_ajax']) && $error) 
                                 <?php
                                     $phone_field_name     = 'phone';
                                     $phone_field_value    = '';
-                                    $phone_field_label    = 'Phone (optional)';
+                                    $phone_field_label    = 'Phone';
                                     $phone_field_required = false;
                                     include '../../includes/phone_input.php';
                                 ?>
+                                <div id="phone_hint" style="font-size:0.72rem;margin-top:3px;color:var(--gray-400);">Optional for today's walk-ins</div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Service <span style="font-size:0.72rem;color:var(--gray-400)">(optional)</span></label>
@@ -752,31 +752,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['_ajax']) && $error) 
                             <?php endif; ?>
                             <div class="col-md-6">
                                 <label class="form-label">Appointment Date <span style="font-size:0.72rem;color:var(--gray-400);">(leave blank for today)</span></label>
-                                <input type="date" name="appointment_date" id="standaloneApptDate" class="form-control" min="<?php echo date('Y-m-d'); ?>" onchange="standaloneOnDateChange(this.value)">
-                            </div>
-                            <!-- Slot picker — shown only when a future date is picked -->
-                            <div class="col-12" id="standaloneFutureSlotsWrap" style="display:none;">
-                                <label class="form-label">Available Time Slots <span style="color:var(--danger)">*</span></label>
-                                <div id="standaloneSlotsBar" style="font-size:0.8rem;color:var(--gray-400);margin-bottom:6px;"></div>
-                                <select name="selected_time" id="standaloneSlotSelect" class="form-select">
-                                    <option value="">— Loading… —</option>
-                                </select>
-                                <div id="standaloneSlotNote" style="font-size:0.72rem;color:var(--gray-400);margin-top:4px;"></div>
+                                <input type="date" name="appointment_date" class="form-control" min="<?php echo date('Y-m-d'); ?>">
                             </div>
                             <div class="col-12">
                                 <label class="form-label">Notes / Chief Complaint <span style="font-size:0.72rem;color:var(--gray-400)">(optional)</span></label>
                                 <textarea name="notes" class="form-control" rows="2" placeholder="Describe the patient's concern..."></textarea>
                             </div>
-                            <div class="col-12" id="standaloneManualTimeWrap">
+                            <div class="col-12">
                                 <label class="form-label">
                                     Override Time
                                     <span style="font-size:0.72rem;color:var(--gray-400);">
                                         — Leave blank to auto-assign<?php if ($next_label): ?> <strong style="color:var(--blue-500);">(<?php echo $next_label; ?>)</strong><?php endif; ?>
                                     </span>
                                 </label>
-                                <input type="text" name="manual_time" class="form-control" style="max-width:200px;"
-                                    placeholder="HH:MM e.g. 14:30 (24-hr)" pattern="\d{2}:\d{2}">
-                                <div style="font-size:0.72rem;color:var(--gray-400);margin-top:4px;">24-hour format only. Leave blank to use the next available slot.</div>
+                                <input type="time" name="manual_time" class="form-control" style="max-width:200px;" step="1800">
+                                <div style="font-size:0.72rem;color:var(--gray-400);margin-top:4px;">Leave blank to auto-assign the next available slot.</div>
                             </div>
                         </div>
                         <div class="mt-4" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding-top:8px;border-top:var(--border);">
@@ -870,69 +860,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['_ajax']) && $error) 
 <?php include '../../includes/footer.php'; ?>
 
 <script>
-/* ── Standalone Walk-in: future date slot loader ─────────────────── */
-var _today_sa = '<?php echo date('Y-m-d'); ?>';
-function standaloneOnDateChange(val) {
-    var slotsWrap  = document.getElementById('standaloneFutureSlotsWrap');
-    var manualWrap = document.getElementById('standaloneManualTimeWrap');
-    var slotSel    = document.getElementById('standaloneSlotSelect');
-    var slotBar    = document.getElementById('standaloneSlotsBar');
-    var slotNote   = document.getElementById('standaloneSlotNote');
+/* ── Phone required when future date is selected ─────────────────── */
+(function () {
+    var dateInput  = document.querySelector('input[name="appointment_date"]');
+    var phoneInput = document.querySelector('input[name="phone_number"], input[name="phone"]');
+    var phoneHint  = document.getElementById('phone_hint');
+    var today      = '<?php echo date('Y-m-d'); ?>';
 
-    if (!val || val === _today_sa) {
-        // Today or blank — hide slot picker, show manual time
-        slotsWrap.style.display  = 'none';
-        manualWrap.style.display = '';
-        if (slotSel) slotSel.removeAttribute('required');
-        return;
+    function updatePhoneRequirement() {
+        if (!dateInput || !phoneInput) return;
+        var val = dateInput.value;
+        var isFuture = val && val > today;
+        phoneInput.required = isFuture;
+        if (phoneHint) {
+            phoneHint.textContent = isFuture
+                ? 'Required for advance bookings (for reminders)'
+                : 'Optional for today\'s walk-ins';
+            phoneHint.style.color = isFuture ? 'var(--warning)' : 'var(--gray-400)';
+        }
     }
 
-    // Future date — show slot picker, hide manual time
-    slotsWrap.style.display  = '';
-    manualWrap.style.display = 'none';
-    if (slotSel) slotSel.setAttribute('required', 'required');
-    slotBar.textContent  = 'Checking schedule…';
-    slotNote.textContent = '';
-    slotSel.innerHTML    = '<option value="">— Loading slots… —</option>';
-
-    fetch('<?php echo BASE_URL; ?>modules/walkin/add.php?action=get_slots&date=' + encodeURIComponent(val))
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-        if (data.status !== 'success') {
-            slotBar.textContent = data.message || 'Could not load schedule.';
-            slotSel.innerHTML   = '<option value="" disabled>Error loading slots</option>';
-            return;
-        }
-        var sd = data.slot_data;
-        if (sd.is_closed) {
-            slotBar.innerHTML = '<i class="bi bi-calendar-x" style="color:var(--warning);"></i> ' + sd.reason;
-            slotSel.innerHTML = '<option value="" disabled>Clinic closed this day</option>';
-            slotSel.removeAttribute('required');
-            return;
-        }
-        var free = (sd.total_slots || 0) - (sd.booked_count || 0);
-        slotBar.innerHTML = '<i class="bi bi-calendar-check" style="color:var(--primary);"></i> '
-            + data.day_name + ' — <strong style="color:var(--primary);">' + free + ' slot' + (free !== 1 ? 's' : '') + ' free</strong>';
-        slotSel.innerHTML = '<option value="">— Choose a time slot —</option>';
-        var fc = 0;
-        (sd.all_slots || []).forEach(function(s) {
-            if (!s.taken && !s.past) {
-                var opt = document.createElement('option');
-                opt.value       = s.time;
-                opt.textContent = s.label;
-                slotSel.appendChild(opt);
-                fc++;
-            }
-        });
-        slotNote.textContent = fc > 0 ? fc + ' available slot' + (fc !== 1 ? 's' : '') + '.' : 'No available slots on this date.';
-        if (fc === 0) { slotSel.innerHTML = '<option value="" disabled>No slots available</option>'; slotSel.removeAttribute('required'); }
-    })
-    .catch(function() {
-        slotBar.textContent = 'Could not load schedule. Please enter time manually.';
-        slotsWrap.style.display  = 'none';
-        manualWrap.style.display = '';
-    });
-}
+    if (dateInput) {
+        dateInput.addEventListener('change', updatePhoneRequirement);
+        updatePhoneRequirement();
+    }
+})();
 
 /* ── Standalone Walk-in Page — Returning Patient Search ─────────── */
 var _ssDebounce = null;
