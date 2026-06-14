@@ -889,7 +889,7 @@ function doConfirmAppt() {
       <div class="modal-header" style="padding:18px 24px;border-bottom:var(--border);background:linear-gradient(135deg,var(--blue-500),var(--blue-400));border-radius:16px 16px 0 0;">
         <div>
           <h5 class="modal-title" id="apptModalLabel" style="color:#fff;font-weight:800;font-size:1rem;margin:0;"><i class="bi bi-calendar2-plus"></i> New Appointment</h5>
-          <p id="drawerSubtitle" style="color:rgba(255,255,255,0.82);font-size:0.78rem;margin:2px 0 0;">Register a new patient — today or advance booking</p>
+          <p id="drawerSubtitle" style="color:rgba(255,255,255,0.82);font-size:0.78rem;margin:2px 0 0;">Schedule a future appointment for a patient</p>
         </div>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
@@ -905,6 +905,7 @@ function doConfirmAppt() {
       <div class="modal-body" style="padding:22px 24px;">
         <form id="walkinDrawerForm" autocomplete="off">
             <input type="hidden" name="_ajax" value="1">
+            <input type="hidden" name="mode" value="appointment">
             <?php echo csrf_field(); ?>
             <input type="hidden" name="existing_patient_id" id="drawerExistingPatientId" value="">
             <div class="row g-3">
@@ -912,8 +913,8 @@ function doConfirmAppt() {
                 <!-- Date -->
                 <div class="col-12">
                     <label class="form-label" style="font-weight:600;">Appointment Date <span style="color:var(--danger)">*</span></label>
-                    <input type="date" name="appointment_date" id="drawerDate" class="form-control" value="<?php echo date('Y-m-d'); ?>">
-                    <div style="font-size:0.72rem;color:var(--gray-500);margin-top:4px;">Today = walk-in. Future date = advance booking.</div>
+                    <input type="date" name="appointment_date" id="drawerDate" class="form-control" value="<?php echo date('Y-m-d', strtotime('+1 day')); ?>" min="<?php echo date('Y-m-d', strtotime('+1 day')); ?>">
+                    <div style="font-size:0.72rem;color:var(--gray-500);margin-top:4px;">Advance booking — choose a future date.</div>
                 </div>
 
                 <!-- Patient search -->
@@ -976,8 +977,8 @@ function doConfirmAppt() {
 
                 <!-- Time slot picker -->
                 <div class="col-12" id="drawerSlotPickerWrap">
-                    <label class="form-label">Preferred Time <span style="color:var(--danger)" id="drawerTimeRequired">*</span> <span id="drawerTimeOptionalNote" style="font-size:0.72rem;color:var(--gray-400);font-weight:400;display:none;">(optional — leave blank to auto-assign)</span></label>
-                    <select name="selected_time" id="drawerSlotSelect" class="form-select">
+                    <label class="form-label">Appointment Time <span style="color:var(--danger)">*</span></label>
+                    <select name="selected_time" id="drawerSlotSelect" class="form-select" required>
                         <option value="">— Loading slots… —</option>
                     </select>
                     <div id="drawerSlotNote" style="font-size:0.72rem;color:var(--gray-400);margin-top:3px;"></div>
@@ -994,7 +995,7 @@ function doConfirmAppt() {
       <div class="modal-footer" style="padding:14px 24px;border-top:var(--border);gap:8px;">
         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
         <button type="button" class="btn btn-success" id="walkinSubmitBtn" onclick="submitWalkin()" style="min-width:160px;font-weight:700;">
-            <i class="bi bi-person-check-fill"></i> <span id="walkinBtnLabel">Register Patient</span>
+            <i class="bi bi-person-check-fill"></i> <span id="walkinBtnLabel">Book Appointment</span>
         </button>
       </div>
     </div><!-- /.modal-content -->
@@ -1014,6 +1015,7 @@ function doConfirmAppt() {
 
 <script>
 var _today = '<?php echo date('Y-m-d'); ?>';
+var _tomorrow = '<?php echo date('Y-m-d', strtotime('+1 day')); ?>';
 var _phpBaseUrl = '<?php echo BASE_URL; ?>';
 var _baseUrl=(function(){
     try {
@@ -1028,13 +1030,15 @@ var _baseUrl=(function(){
 var _patientSearchTimer = null;
 
 function openWalkinDrawer(presetDate) {
-    var dateToUse = presetDate || _today;
+    // Appointment drawer is for future bookings only — clamp to tomorrow
+    // even if a presetDate (e.g. from a calendar day click) is earlier.
+    var dateToUse = (presetDate && presetDate > _today) ? presetDate : _tomorrow;
     var modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('apptModal'));
     modal.show();
     document.getElementById('walkinDrawerForm').reset();
     requestAnimationFrame(function(){
         document.getElementById('drawerDate').value = dateToUse;
-        document.getElementById('walkinBtnLabel').textContent = dateToUse === _today ? 'Register Patient' : 'Book Appointment';
+        document.getElementById('walkinBtnLabel').textContent = 'Book Appointment';
     });
     document.getElementById('drawerExistingPatientId').value = '';
     document.getElementById('drawerPatientSearch').value = '';
@@ -1125,10 +1129,7 @@ function loadDrawerDateData(date) {
     var slotSelect = document.getElementById('drawerSlotSelect');
     var slotNote   = document.getElementById('drawerSlotNote');
     var docNote    = document.getElementById('drawerDoctorNote');
-    var timeReq    = document.getElementById('drawerTimeRequired');
-    var timeOpt    = document.getElementById('drawerTimeOptionalNote');
     if (!bar || !slotSelect || !docSelect) { return; }
-    var isToday    = (date === _today);
 
     bar.innerHTML = '<span style="color:var(--gray-400);">Checking schedule…</span>';
     slotSelect.innerHTML = '<option value="">— Loading slots… —</option>';
@@ -1145,10 +1146,9 @@ function loadDrawerDateData(date) {
         if (sd.is_closed) {
             bar.innerHTML = '<i class="bi bi-calendar-x" style="color:var(--warning);"></i> <strong>' + sd.reason + '</strong>';
         } else {
-            var free     = (sd.total_slots||0) - (sd.booked_count||0);
-            var nextPart = sd.slot ? ' · Next: <strong style="color:var(--primary);">' + sd.label + '</strong>' : '';
+            var free = (sd.total_slots||0) - (sd.booked_count||0);
             bar.innerHTML = '<i class="bi bi-calendar-check" style="color:var(--primary);"></i> '
-                + data.day_name + ' — <strong style="color:var(--primary);">' + free + ' slot' + (free!==1?'s':'') + ' free</strong>' + nextPart;
+                + data.day_name + ' — <strong style="color:var(--primary);">' + free + ' slot' + (free!==1?'s':'') + ' free</strong>';
         }
 
         var savedDoc = docSelect.value;
@@ -1166,18 +1166,8 @@ function loadDrawerDateData(date) {
             docNote.textContent = docs.length + ' doctor' + (docs.length!==1?'s':'') + ' available on this day.';
         }
 
-        document.getElementById('walkinBtnLabel').textContent = isToday ? 'Register Patient' : 'Book Appointment';
-        slotSelect.innerHTML = '<option value="">' + (isToday ? '— Auto-assign next slot —' : '— Choose a time slot —') + '</option>';
-
-        if (isToday) {
-            if (timeReq) timeReq.style.display = 'none';
-            if (timeOpt) timeOpt.style.display = '';
-            slotSelect.removeAttribute('required');
-        } else {
-            if (timeReq) timeReq.style.display = '';
-            if (timeOpt) timeOpt.style.display = 'none';
-            slotSelect.setAttribute('required', 'required');
-        }
+        slotSelect.innerHTML = '<option value="">— Choose a time slot —</option>';
+        slotSelect.setAttribute('required', 'required');
 
         if (sd.is_closed) {
             slotSelect.innerHTML = '<option value="" disabled>Clinic closed this day</option>';
@@ -1189,9 +1179,6 @@ function loadDrawerDateData(date) {
                     var opt = document.createElement('option');
                     opt.value = s.time;
                     opt.textContent = s.label;
-                    if (isToday && sd.slot && s.time + ':00' === sd.slot) {
-                        opt.textContent = s.label + ' ← auto';
-                    }
                     slotSelect.appendChild(opt);
                     fc++;
                 }
@@ -1222,8 +1209,7 @@ function submitWalkin() {
     var form       = document.getElementById('walkinDrawerForm');
     var btn        = document.getElementById('walkinSubmitBtn');
     var existingId = document.getElementById('drawerExistingPatientId').value;
-    var date       = form.querySelector('[name=appointment_date]').value || _today;
-    var isToday    = (date === _today);
+    var date       = form.querySelector('[name=appointment_date]').value || _tomorrow;
     var sv         = form.querySelector('[name=selected_time]') ? form.querySelector('[name=selected_time]').value : '';
 
     if (!existingId) {
@@ -1231,17 +1217,18 @@ function submitWalkin() {
         var last  = form.querySelector('[name=last_name]').value.trim();
         if (!first || !last) { showDrawerAlert('danger', 'Enter a patient name, or search and select an existing patient.'); return; }
     }
-    if (!isToday && !sv) { showDrawerAlert('danger', 'Please select a time slot for the advance booking.'); return; }
+    if (date <= _today) { showDrawerAlert('danger', 'Please choose a future date for the appointment.'); return; }
+    if (!sv) { showDrawerAlert('danger', 'Please select a time slot for the appointment.'); return; }
 
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> ' + (isToday ? 'Registering...' : 'Booking...');
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Booking...';
     hideDrawerAlert();
 
     fetch(_baseUrl + 'modules/walkin/add.php', { method: 'POST', body: new FormData(form) })
     .then(r => r.json())
     .then(res => {
         btn.disabled = false;
-        btn.innerHTML = '<i class="bi bi-person-check-fill"></i> <span id="walkinBtnLabel">' + (isToday ? 'Register Patient' : 'Book Appointment') + '</span>';
+        btn.innerHTML = '<i class="bi bi-person-check-fill"></i> <span id="walkinBtnLabel">Book Appointment</span>';
         if (res.status === 'success') {
             var appt           = res.appt || {};
             var isReturning    = !!res.is_returning;
@@ -1274,7 +1261,7 @@ function submitWalkin() {
                 setTimeout(() => { tr.style.background = ''; }, 3000);
             }
 
-            var toastTitle = isReturning ? 'Returning Patient Booked!' : (isToday ? 'Patient Registered!' : 'Advance Booking Saved!');
+            var toastTitle = isReturning ? 'Returning Patient Booked!' : 'Appointment Booked!';
             var toastMsg   = '<strong>' + (appt.patient_name||'') + '</strong> (' + (appt.patient_code||'') + ')<br>';
             toastMsg += isReturning ? 'Existing record used - no duplicate created.<br>' : '';
             toastMsg += 'Appt: <strong>' + (appt.appt_code||'') + '</strong> - ' + dateLabel + ' at <strong>' + timeLabel + '</strong>';
@@ -1294,7 +1281,7 @@ function submitWalkin() {
     })
     .catch(() => {
         btn.disabled = false;
-        btn.innerHTML = '<i class="bi bi-person-check-fill"></i> <span id="walkinBtnLabel">Register Patient</span>';
+        btn.innerHTML = '<i class="bi bi-person-check-fill"></i> <span id="walkinBtnLabel">Book Appointment</span>';
         showDrawerAlert('danger', 'Network error. Please try again.');
     });
 }

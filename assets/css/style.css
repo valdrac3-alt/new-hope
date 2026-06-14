@@ -46,6 +46,11 @@
     --gray-50:        #f7fafd;
     --white:          #ffffff;
 
+    /* Aliases — keep older inline-style references working */
+    --border-radius-md: var(--radius-md);
+    --green-50:          #f0fdf4;
+    --card-bg:           var(--white);
+
     /* Semantic */
     --success:        #0a7c5c;
     --success-light:  #10b981;

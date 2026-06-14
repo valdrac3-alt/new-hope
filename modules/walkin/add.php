@@ -274,8 +274,8 @@ $next_label = $slot_data['label'];
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        validate_csrf();
-        $first_name  = ucwords(strtolower(trim($_POST['first_name']  ?? '')));
+    validate_csrf();
+    $first_name  = ucwords(strtolower(trim($_POST['first_name']  ?? '')));
     $last_name   = ucwords(strtolower(trim($_POST['last_name']   ?? '')));
     $phone       = trim($_POST['phone']       ?? '');
 
@@ -284,22 +284,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $service_id  = !empty($_POST['service_id']) ? intval($_POST['service_id']) : null;
     $doctor_id   = !empty($_POST['doctor_id'])  ? intval($_POST['doctor_id'])  : null;
 
-    $notes            = trim($_POST['notes']            ?? '');
-    $selected_time    = trim($_POST['selected_time']    ?? ''); // future date slot picker
-    $manual_time      = trim($_POST['manual_time']      ?? ''); // fallback (legacy)
-    $appointment_date = trim($_POST['appointment_date'] ?? '');
-    $today            = date('Y-m-d');
-    $appointment_date = (!empty($appointment_date) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $appointment_date)) ? $appointment_date : $today;
-    $is_today_appt    = ($appointment_date === $today);
+    $notes         = trim($_POST['notes']         ?? '');
+    $selected_time = trim($_POST['selected_time'] ?? '');
+    $manual_time   = trim($_POST['manual_time']   ?? ''); // fallback (legacy)
+    $today         = date('Y-m-d');
+
+    // ── MODE: 'walkin' (this page) vs 'appointment' (calendar/list drawer) ──
+    // The mode is fixed by which form submitted — never inferred from the
+    // date — so a walk-in can never become a scheduled appointment and
+    // vice versa.
+    $mode = ($_POST['mode'] ?? 'walkin') === 'appointment' ? 'appointment' : 'walkin';
+
+    if ($mode === 'walkin') {
+        // WALK-IN: always today. Date field is ignored even if sent.
+        $appointment_date = $today;
+        $is_today_appt    = true;
+    } else {
+        // APPOINTMENT: always a future date (tomorrow or later).
+        $appointment_date = trim($_POST['appointment_date'] ?? '');
+        $tomorrow = date('Y-m-d', strtotime('+1 day'));
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $appointment_date) || $appointment_date < $tomorrow) {
+            $error = 'Please choose a future date for the appointment.';
+        }
+        $is_today_appt = false;
+    }
+
     // Phone is required for future bookings (needed for reminders)
-    if (!$is_today_appt && empty($phone)) {
+    if (empty($error) && $mode === 'appointment' && empty($phone)) {
         $error = 'Phone number is required for advance bookings (used for appointment reminders).';
     }
     // Prefer selected_time (slot picker) over manual_time
     $slot_input = !empty($selected_time) ? $selected_time : $manual_time;
 
+    // Appointments always require a chosen slot — never auto-assigned.
+    if (empty($error) && $mode === 'appointment' && empty($slot_input)) {
+        $error = 'Please select a time slot for the appointment.';
+    }
+
     $existing_patient_id_check = intval($_POST['existing_patient_id'] ?? 0);
-    if ($existing_patient_id_check === 0) {
+    if (empty($error) && $existing_patient_id_check === 0) {
         if (empty($first_name) || empty($last_name)) {
             $error = 'First name and last name are required.';
         } elseif (strlen($first_name) < 2 || strlen($last_name) < 2) {
@@ -420,7 +443,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Create appointment
             $appt_code = generate_code($conn, 'appointments', 'APT');
-            $type      = ($appointment_date === date('Y-m-d')) ? 'walk-in' : 'scheduled';
+            $type      = ($mode === 'appointment') ? 'scheduled' : 'walk-in';
             $status    = 'pending'; // Staff must click Confirm — never auto-confirmed
 
             $stmt2 = $conn->prepare("
@@ -456,8 +479,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             log_action($conn, $current_user_id, $current_user_name,
-                'Walk-in Registration', 'walkin', $patient_id,
-                "Patient: $first_name $last_name | Appt: $appt_code | Slot: $assigned_time"
+                $mode === 'appointment' ? 'Booked Appointment' : 'Walk-in Registration',
+                $mode === 'appointment' ? 'appointments' : 'walkin',
+                $patient_id,
+                "Patient: $first_name $last_name | Appt: $appt_code | " . ($mode === 'appointment' ? "Date: $appointment_date $assigned_time" : "Slot: $assigned_time")
             );
 
             $new_appt = [
@@ -477,7 +502,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'staff'        => $current_user_name,
             ];
 
-            $success = 'Walk-in registered! Assigned time slot: ' . date('h:i A', strtotime($assigned_time));
+            $success = $mode === 'appointment'
+                ? 'Appointment booked for ' . date('M d, Y', strtotime($appointment_date)) . ' at ' . date('h:i A', strtotime($assigned_time)) . '.'
+                : 'Walk-in registered! Assigned time slot: ' . date('h:i A', strtotime($assigned_time));
 
             // If called from drawer (AJAX), return JSON and exit
             if (!empty($_POST['_ajax'])) {
@@ -675,6 +702,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['_ajax']) && $error) 
                 <div class="card-body" style="padding:20px;">
                     <form method="POST" id="walkinStandaloneForm">
                     <?php echo csrf_field(); ?>
+                        <input type="hidden" name="mode" value="walkin">
                         <input type="hidden" name="existing_patient_id" id="standalone_existing_patient_id" value="">
 
                         <!-- ── Returning Patient Search ──────────────────── -->
@@ -750,10 +778,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['_ajax']) && $error) 
                                 </select>
                             </div>
                             <?php endif; ?>
-                            <div class="col-md-6">
-                                <label class="form-label">Appointment Date <span style="font-size:0.72rem;color:var(--gray-400);">(leave blank for today)</span></label>
-                                <input type="date" name="appointment_date" class="form-control" min="<?php echo date('Y-m-d'); ?>">
-                            </div>
                             <div class="col-12">
                                 <label class="form-label">Notes / Chief Complaint <span style="font-size:0.72rem;color:var(--gray-400)">(optional)</span></label>
                                 <textarea name="notes" class="form-control" rows="2" placeholder="Describe the patient's concern..."></textarea>
@@ -860,32 +884,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['_ajax']) && $error) 
 <?php include '../../includes/footer.php'; ?>
 
 <script>
-/* ── Phone required when future date is selected ─────────────────── */
-(function () {
-    var dateInput  = document.querySelector('input[name="appointment_date"]');
-    var phoneInput = document.querySelector('input[name="phone_number"], input[name="phone"]');
-    var phoneHint  = document.getElementById('phone_hint');
-    var today      = '<?php echo date('Y-m-d'); ?>';
-
-    function updatePhoneRequirement() {
-        if (!dateInput || !phoneInput) return;
-        var val = dateInput.value;
-        var isFuture = val && val > today;
-        phoneInput.required = isFuture;
-        if (phoneHint) {
-            phoneHint.textContent = isFuture
-                ? 'Required for advance bookings (for reminders)'
-                : 'Optional for today\'s walk-ins';
-            phoneHint.style.color = isFuture ? 'var(--warning)' : 'var(--gray-400)';
-        }
-    }
-
-    if (dateInput) {
-        dateInput.addEventListener('change', updatePhoneRequirement);
-        updatePhoneRequirement();
-    }
-})();
-
 /* ── Standalone Walk-in Page — Returning Patient Search ─────────── */
 var _ssDebounce = null;
 var _ssSelected = false;

@@ -826,7 +826,7 @@ $show_now=($day_date===$today&&$now_h>=$open_h&&$now_h<$close_h);
       <div class="modal-header" style="padding:18px 24px;border-bottom:var(--border);background:linear-gradient(135deg,var(--blue-500),var(--blue-400));border-radius:16px 16px 0 0;">
         <div>
           <h5 class="modal-title" id="newApptModalLabel" style="color:#fff;font-weight:800;font-size:1rem;margin:0;"><i class="bi bi-calendar2-plus"></i> New Appointment</h5>
-          <p id="drawerSubtitle" style="color:rgba(255,255,255,0.82);font-size:0.78rem;margin:2px 0 0;">Register a new patient — today or advance booking</p>
+          <p id="drawerSubtitle" style="color:rgba(255,255,255,0.82);font-size:0.78rem;margin:2px 0 0;">Schedule a future appointment for a patient</p>
         </div>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
@@ -835,13 +835,14 @@ $show_now=($day_date===$today&&$now_h>=$open_h&&$now_h<$close_h);
       <div class="modal-body" style="padding:22px 24px;">
         <form id="walkinDrawerForm" autocomplete="off">
             <input type="hidden" name="_ajax" value="1">
+            <input type="hidden" name="mode" value="appointment">
             <?php echo csrf_field(); ?>
             <input type="hidden" name="existing_patient_id" id="drawerExistingPatientId" value="">
             <div class="row g-3">
                 <div class="col-12">
                     <label class="form-label" style="font-weight:600;">Appointment Date <span style="color:var(--danger)">*</span></label>
-                    <input type="date" name="appointment_date" id="drawerDate" class="form-control" min="<?php echo date('Y-m-d');?>" value="<?php echo date('Y-m-d');?>">
-                    <div style="font-size:0.72rem;color:var(--gray-500);margin-top:4px;">Today = walk-in. Future date = advance booking.</div>
+                    <input type="date" name="appointment_date" id="drawerDate" class="form-control" min="<?php echo date('Y-m-d', strtotime('+1 day'));?>" value="<?php echo date('Y-m-d', strtotime('+1 day'));?>">
+                    <div style="font-size:0.72rem;color:var(--gray-500);margin-top:4px;">Advance booking — choose a future date.</div>
                 </div>
                 <div class="col-12">
                     <label class="form-label" style="font-weight:600;">Patient Search</label>
@@ -891,8 +892,8 @@ $show_now=($day_date===$today&&$now_h>=$open_h&&$now_h<$close_h);
                     <div id="drawerDoctorNote" style="font-size:0.72rem;color:var(--gray-400);margin-top:3px;">Showing doctors available today.</div>
                 </div>
                 <div class="col-12" id="drawerSlotPickerWrap">
-                    <label class="form-label">Preferred Time <span style="color:var(--danger)" id="drawerTimeRequired">*</span><span id="drawerTimeOptionalNote" style="font-size:0.72rem;color:var(--gray-400);font-weight:400;display:none;"> (optional — leave blank to auto-assign)</span></label>
-                    <select name="selected_time" id="drawerSlotSelect" class="form-select">
+                    <label class="form-label">Appointment Time <span style="color:var(--danger)">*</span></label>
+                    <select name="selected_time" id="drawerSlotSelect" class="form-select" required>
                         <option value="">— Loading slots… —</option>
                     </select>
                     <div id="drawerSlotNote" style="font-size:0.72rem;color:var(--gray-400);margin-top:3px;"></div>
@@ -903,7 +904,7 @@ $show_now=($day_date===$today&&$now_h>=$open_h&&$now_h<$close_h);
       </div>
       <div class="modal-footer" style="padding:14px 24px;border-top:var(--border);gap:8px;">
         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-success" id="walkinSubmitBtn" onclick="submitWalkin()" style="min-width:160px;font-weight:700;"><i class="bi bi-person-check-fill"></i> <span id="walkinBtnLabel">Register Patient</span></button>
+        <button type="button" class="btn btn-success" id="walkinSubmitBtn" onclick="submitWalkin()" style="min-width:160px;font-weight:700;"><i class="bi bi-person-check-fill"></i> <span id="walkinBtnLabel">Book Appointment</span></button>
       </div>
     </div>
   </div>
@@ -943,6 +944,7 @@ $show_now=($day_date===$today&&$now_h>=$open_h&&$now_h<$close_h);
 <?php include '../../includes/footer.php'; ?>
 <script>
 var _today='<?php echo $today;?>';
+var _tomorrow='<?php echo date('Y-m-d', strtotime('+1 day'));?>';
 var _phpBaseUrl='<?php echo BASE_URL;?>';
 // Use protocol-relative root to avoid http/https mismatch on Railway (proxy strips TLS).
 // Derive app root from the PHP-generated URL but force current protocol/host.
@@ -1093,9 +1095,11 @@ function openWalkinDrawer(presetDate){
     var modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('newApptModal'));
     modal.show();
     document.getElementById('walkinDrawerForm').reset();
-    var dateToUse = (presetDate && presetDate >= _today) ? presetDate : _today;
+    // Appointment drawer is for future bookings only — clamp to tomorrow
+    // even if a presetDate (e.g. a calendar day click) is today or earlier.
+    var dateToUse = (presetDate && presetDate > _today) ? presetDate : _tomorrow;
     document.getElementById('drawerDate').value=dateToUse;
-    document.getElementById('walkinBtnLabel').textContent= dateToUse===_today ? 'Register Patient' : 'Book Appointment';
+    document.getElementById('walkinBtnLabel').textContent='Book Appointment';
     document.getElementById('drawerExistingPatientId').value='';
     document.getElementById('drawerPatientSearch').value='';
     document.getElementById('drawerPatientResults').style.display='none';
@@ -1173,10 +1177,7 @@ function loadDrawerDateData(date){
     var slotSelect=document.getElementById('drawerSlotSelect');
     var slotNote=document.getElementById('drawerSlotNote');
     var docNote=document.getElementById('drawerDoctorNote');
-    var timeReq=document.getElementById('drawerTimeRequired');
-    var timeOpt=document.getElementById('drawerTimeOptionalNote');
     if(!bar||!slotSelect||!docSelect){return;}
-    var isToday=(date===_today);
     bar.innerHTML='<span style="color:var(--gray-400);">Checking schedule…</span>';
     slotSelect.innerHTML='<option value="">— Loading slots… —</option>';
     fetch(_baseUrl+'modules/walkin/add.php?action=get_slots&date='+encodeURIComponent(date))
@@ -1184,18 +1185,15 @@ function loadDrawerDateData(date){
         if(data.status!=='success'){bar.innerHTML='<i class="bi bi-exclamation-triangle-fill" style="color:#f59e0b;"></i> '+(data.message||'Could not load schedule.');return;}
         var sd=data.slot_data,docs=data.doctors||[];
         if(sd.is_closed){bar.innerHTML='<i class="bi bi-calendar-x" style="color:#f59e0b;"></i> <strong>'+sd.reason+'</strong>';}
-        else{var free=(sd.total_slots||0)-(sd.booked_count||0);var nextPart=sd.slot?' · Next: <strong style="color:#2563eb;">'+sd.label+'</strong>':'';bar.innerHTML='<i class="bi bi-calendar-check" style="color:#2563eb;"></i> '+data.day_name+' — <strong style="color:#2563eb;">'+free+' slot'+(free!==1?'s':'')+' free</strong>'+nextPart;}
+        else{var free=(sd.total_slots||0)-(sd.booked_count||0);bar.innerHTML='<i class="bi bi-calendar-check" style="color:#2563eb;"></i> '+data.day_name+' — <strong style="color:#2563eb;">'+free+' slot'+(free!==1?'s':'')+' free</strong>';}
         var savedDoc=docSelect.value;
         docSelect.innerHTML='<option value="">Any Available Doctor</option>';
         if(!docs.length){docNote.textContent='No doctors scheduled on this day.';}
         else{docs.forEach(function(d){var o=document.createElement('option');o.value=d.id;o.textContent=d.full_name+(d.specialization?' — '+d.specialization:'');if(String(d.id)===String(savedDoc))o.selected=true;docSelect.appendChild(o);});docNote.textContent=docs.length+' doctor'+(docs.length!==1?'s':'')+' available on this day.';}
-        // Slot picker always visible
-        document.getElementById('walkinBtnLabel').textContent=isToday?'Register Patient':'Book Appointment';
-        slotSelect.innerHTML='<option value="">'+(isToday?'— Auto-assign next slot —':'— Choose a time slot —')+'</option>';
-        if(isToday){if(timeReq)timeReq.style.display='none';if(timeOpt)timeOpt.style.display='';slotSelect.removeAttribute('required');}
-        else{if(timeReq)timeReq.style.display='';if(timeOpt)timeOpt.style.display='none';slotSelect.setAttribute('required','required');}
+        slotSelect.innerHTML='<option value="">— Choose a time slot —</option>';
+        slotSelect.setAttribute('required','required');
         if(sd.is_closed){slotSelect.innerHTML='<option value="" disabled>Clinic closed this day</option>';slotNote.textContent='';}
-        else{var fc=0;(sd.all_slots||[]).forEach(function(s){if(!s.taken&&!s.past){var o=document.createElement('option');o.value=s.time;o.textContent=s.label+(isToday&&sd.slot&&s.time+':00'===sd.slot?' ← auto':'');slotSelect.appendChild(o);fc++;}});slotNote.textContent=fc>0?fc+' available slot'+(fc!==1?'s':'')+'.':'No available slots.';if(!fc)slotSelect.innerHTML='<option value="" disabled>No slots available</option>';}
+        else{var fc=0;(sd.all_slots||[]).forEach(function(s){if(!s.taken&&!s.past){var o=document.createElement('option');o.value=s.time;o.textContent=s.label;slotSelect.appendChild(o);fc++;}});slotNote.textContent=fc>0?fc+' available slot'+(fc!==1?'s':'')+'.':'No available slots.';if(!fc)slotSelect.innerHTML='<option value="" disabled>No slots available</option>';}
     }).catch(function(err){if(bar)bar.innerHTML='<i class="bi bi-exclamation-triangle-fill" style="color:#f59e0b;"></i> Could not load schedule.';if(slotSelect)slotSelect.innerHTML='<option value="" disabled>Error loading slots</option>';});
 }
 document.addEventListener('DOMContentLoaded',function(){
@@ -1208,31 +1206,31 @@ function submitWalkin(){
     var form=document.getElementById('walkinDrawerForm');
     var btn=document.getElementById('walkinSubmitBtn');
     var existingId=document.getElementById('drawerExistingPatientId').value;
-    var date=form.querySelector('[name=appointment_date]').value||_today;
-    var isToday=(date===_today);
+    var date=form.querySelector('[name=appointment_date]').value||_tomorrow;
     var sv=form.querySelector('[name=selected_time]')?form.querySelector('[name=selected_time]').value:'';
     if(!existingId){
         var first=form.querySelector('[name=first_name]')?form.querySelector('[name=first_name]').value.trim():'';
         var last=form.querySelector('[name=last_name]')?form.querySelector('[name=last_name]').value.trim():'';
         if(!first||!last){showDrawerAlert('danger','Enter a patient name, or search and select an existing patient.');return;}
     }
-    if(!isToday&&!sv){showDrawerAlert('danger','Please select a time slot for the advance booking.');return;}
-    btn.disabled=true;btn.innerHTML='<span class="spinner-border spinner-border-sm"></span> '+(isToday?'Registering...':'Booking...');
+    if(date<=_today){showDrawerAlert('danger','Please choose a future date for the appointment.');return;}
+    if(!sv){showDrawerAlert('danger','Please select a time slot for the appointment.');return;}
+    btn.disabled=true;btn.innerHTML='<span class="spinner-border spinner-border-sm"></span> Booking...';
     hideDrawerAlert();
     fetch(_baseUrl+'modules/walkin/add.php',{method:'POST',body:new FormData(form)})
     .then(r=>r.json()).then(res=>{
-        btn.disabled=false;btn.innerHTML='<i class="bi bi-person-check-fill"></i> <span id="walkinBtnLabel">'+(isToday?'Register Patient':'Book Appointment')+'</span>';
+        btn.disabled=false;btn.innerHTML='<i class="bi bi-person-check-fill"></i> <span id="walkinBtnLabel">Book Appointment</span>';
         if(res.status==='success'){
             closeWalkinDrawer();
             var appt=res.appt||{};
             var tl=appt.time?new Date('1970-01-01T'+appt.time).toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit',hour12:true}):'';
             var isRet=res.is_returning;
-            document.getElementById('walkinToastTitle').textContent=isRet?'📋 Returning Patient Booked!':(isToday?'✅ Patient Registered!':'📅 Advance Booking Saved!');
+            document.getElementById('walkinToastTitle').textContent=isRet?'📋 Returning Patient Booked!':'📅 Appointment Booked!';
             document.getElementById('walkinToastMsg').innerHTML='<strong>'+(appt.patient_name||'')+'</strong>'+(isRet?' <em style="font-size:0.75rem;">(existing record used)</em>':'')+'<br>'+appt.appt_code+' at '+tl;
             var toast=document.getElementById('walkinToast');toast.style.display='block';setTimeout(()=>{toast.style.display='none';},6000);
             setTimeout(()=>location.reload(),1000);
         }else{showDrawerAlert('danger',res.message||'Something went wrong.');}
-    }).catch(()=>{btn.disabled=false;btn.innerHTML='<i class="bi bi-person-check-fill"></i> <span id="walkinBtnLabel">Register Patient</span>';showDrawerAlert('danger','Network error. Please try again.');});
+    }).catch(()=>{btn.disabled=false;btn.innerHTML='<i class="bi bi-person-check-fill"></i> <span id="walkinBtnLabel">Book Appointment</span>';showDrawerAlert('danger','Network error. Please try again.');});
 }
 </script>
 </body>
