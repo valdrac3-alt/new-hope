@@ -864,6 +864,10 @@ $show_now=($day_date===$today&&$now_h>=$open_h&&$now_h<$close_h);
                         </button>
                     </div>
                 </div>
+                <div class="col-12" id="drawerNewPatientHeading" style="display:none;margin-top:4px;">
+                    <div style="font-size:0.78rem;font-weight:600;color:var(--gray-700);">New Patient — Quick Entry</div>
+                    <div style="font-size:0.72rem;color:var(--gray-400);">Creates a basic patient record now. Add full details (date of birth, address, etc.) later in Patient Records.</div>
+                </div>
                 <div class="col-6" id="drawerFirstNameWrap" style="display:none;">
                     <label class="form-label">First Name <span style="color:var(--danger)">*</span></label>
                     <input type="text" name="first_name" id="drawerFirstName" class="form-control" placeholder="e.g. Juan">
@@ -1115,6 +1119,7 @@ function closeWalkinDrawer(){
     if(modal) modal.hide();
 }
 function showNewPatientFields(show){
+    var h=document.getElementById('drawerNewPatientHeading');if(h)h.style.display=show?'':'none';
     ['drawerFirstNameWrap','drawerLastNameWrap','drawerPhoneWrap'].forEach(function(id){
         var el=document.getElementById(id);if(el)el.style.display=show?'':'none';
     });

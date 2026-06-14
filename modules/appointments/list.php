@@ -931,19 +931,28 @@ function doConfirmAppt() {
                         <span id="drawerPatientSelectedName" style="font-weight:600;flex:1;"></span>
                         <button type="button" onclick="clearPatientSelection()" style="background:none;border:none;color:var(--gray-400);cursor:pointer;font-size:0.75rem;">✕ New patient</button>
                     </div>
-                    <div style="font-size:0.72rem;color:var(--gray-400);margin-top:4px;">Leave blank to register a new patient.</div>
+                    <div style="margin-top:6px;display:flex;align-items:center;gap:8px;">
+                        <span style="font-size:0.72rem;color:var(--gray-400);">New patient?</span>
+                        <button type="button" id="drawerNewPatientBtn" onclick="toggleNewPatientFields()" class="btn btn-sm btn-outline-secondary" style="font-size:0.72rem;padding:2px 10px;">
+                            <i class="bi bi-person-plus"></i> Enter Name Manually
+                        </button>
+                    </div>
                 </div>
 
-                <!-- Name fields (hidden if returning patient selected) -->
-                <div class="col-6" id="drawerFirstNameWrap">
+                <!-- Quick-entry new patient (hidden until "Enter Name Manually" is clicked) -->
+                <div class="col-12" id="drawerNewPatientHeading" style="display:none;margin-top:4px;">
+                    <div style="font-size:0.78rem;font-weight:600;color:var(--gray-700);">New Patient — Quick Entry</div>
+                    <div style="font-size:0.72rem;color:var(--gray-400);">Creates a basic patient record now. Add full details (date of birth, address, etc.) later in Patient Records.</div>
+                </div>
+                <div class="col-6" id="drawerFirstNameWrap" style="display:none;">
                     <label class="form-label">First Name <span style="color:var(--danger)">*</span></label>
-                    <input type="text" name="first_name" id="drawerFirstName" class="form-control" placeholder="e.g. Juan" required>
+                    <input type="text" name="first_name" id="drawerFirstName" class="form-control" placeholder="e.g. Juan">
                 </div>
-                <div class="col-6" id="drawerLastNameWrap">
+                <div class="col-6" id="drawerLastNameWrap" style="display:none;">
                     <label class="form-label">Last Name <span style="color:var(--danger)">*</span></label>
-                    <input type="text" name="last_name" id="drawerLastName" class="form-control" placeholder="e.g. dela Cruz" required>
+                    <input type="text" name="last_name" id="drawerLastName" class="form-control" placeholder="e.g. dela Cruz">
                 </div>
-                <div class="col-12" id="drawerPhoneWrap">
+                <div class="col-12" id="drawerPhoneWrap" style="display:none;">
                     <label class="form-label">Phone <span style="font-size:0.72rem;color:var(--gray-400);font-weight:400;">(optional)</span></label>
                     <input type="text" name="phone" id="drawerPhone" class="form-control" placeholder="09XXXXXXXXX" maxlength="13">
                 </div>
@@ -1044,7 +1053,9 @@ function openWalkinDrawer(presetDate) {
     document.getElementById('drawerPatientSearch').value = '';
     document.getElementById('drawerPatientResults').style.display = 'none';
     document.getElementById('drawerPatientSelected').style.display = 'none';
-    showNewPatientFields(true);
+    _newPatientFieldsVisible = false;
+    showNewPatientFields(false);
+    updateNewPatientBtn();
     hideDrawerAlert();
     loadDrawerDateData(dateToUse);
 }
@@ -1088,22 +1099,30 @@ function selectPatient(id, name, code, phone) {
     document.getElementById('drawerPatientSearch').value = '';
     document.getElementById('drawerPatientSelectedName').textContent = name + ' (' + code + ') · ' + phone;
     document.getElementById('drawerPatientSelected').style.display = 'flex';
+    _newPatientFieldsVisible = false;
     showNewPatientFields(false);
+    updateNewPatientBtn();
 }
 
 function clearPatientSelection() {
     document.getElementById('drawerExistingPatientId').value = '';
     document.getElementById('drawerPatientSelected').style.display = 'none';
+    _newPatientFieldsVisible = true;
     showNewPatientFields(true);
+    updateNewPatientBtn();
 }
 
+var _newPatientFieldsVisible = false;
+
 function showNewPatientFields(show) {
+    var heading  = document.getElementById('drawerNewPatientHeading');
     var fn       = document.getElementById('drawerFirstNameWrap');
     var ln       = document.getElementById('drawerLastNameWrap');
     var ph       = document.getElementById('drawerPhoneWrap');
     var fn_input = document.getElementById('drawerFirstName');
     var ln_input = document.getElementById('drawerLastName');
     var ph_input = document.getElementById('drawerPhone');
+    if (heading) heading.style.display = show ? '' : 'none';
     [fn, ln, ph].forEach(el => { if(el) el.style.display = show ? '' : 'none'; });
     if (fn_input) fn_input.required = show;
     if (ln_input) ln_input.required = show;
@@ -1114,6 +1133,31 @@ function showNewPatientFields(show) {
         if (ph_input) ph_input.value = '';
     }
 }
+
+function toggleNewPatientFields() {
+    _newPatientFieldsVisible = !_newPatientFieldsVisible;
+    showNewPatientFields(_newPatientFieldsVisible);
+    updateNewPatientBtn();
+    if (_newPatientFieldsVisible) {
+        document.getElementById('drawerExistingPatientId').value = '';
+        document.getElementById('drawerPatientSelected').style.display = 'none';
+    }
+}
+
+function updateNewPatientBtn() {
+    var btn = document.getElementById('drawerNewPatientBtn');
+    if (!btn) return;
+    if (_newPatientFieldsVisible) {
+        btn.innerHTML = '<i class="bi bi-x"></i> Hide Name Fields';
+        btn.classList.remove('btn-outline-secondary');
+        btn.classList.add('btn-outline-danger');
+    } else {
+        btn.innerHTML = '<i class="bi bi-person-plus"></i> Enter Name Manually';
+        btn.classList.remove('btn-outline-danger');
+        btn.classList.add('btn-outline-secondary');
+    }
+}
+
 
 document.addEventListener('click', function(e) {
     var res = document.getElementById('drawerPatientResults');

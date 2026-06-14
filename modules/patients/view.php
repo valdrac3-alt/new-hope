@@ -218,7 +218,7 @@ $total_paid = array_sum(array_column($payments, 'amount_paid'));
         <!-- Page Header -->
         <div class="page-header" style="margin-bottom:16px;">
             <div>
-                <h5 style="margin-bottom:2px;"><?php echo e($patient['first_name'] . ' ' . $patient['last_name']); ?></h5>
+                <h5 style="margin-bottom:2px;"><?php echo e($patient['first_name'] . ' ' . $patient['last_name']); ?><?php if (!empty($patient['is_incomplete'])): ?> <span class="badge bg-warning" style="font-size:0.65rem;font-weight:600;vertical-align:middle;"><i class="bi bi-exclamation-circle"></i> Incomplete profile</span><?php endif; ?></h5>
                 <small class="text-muted"><?php echo e($patient['patient_code']); ?></small>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
@@ -236,6 +236,15 @@ $total_paid = array_sum(array_column($payments, 'amount_paid'));
                 </a>
             </div>
         </div>
+
+        <?php if (!empty($patient['is_incomplete'])): ?>
+        <div class="alert alert-warning" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+            <span><i class="bi bi-exclamation-triangle"></i> This patient was quick-added (name and phone only). Add date of birth, gender, and address to complete the profile.</span>
+            <a href="edit.php?id=<?php echo $id; ?>" class="btn btn-sm btn-warning" style="white-space:nowrap;">
+                <i class="bi bi-pencil"></i> Complete Profile
+            </a>
+        </div>
+        <?php endif; ?>
 
         <!-- Mobile Tabs -->
         <div class="profile-tabs">

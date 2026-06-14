@@ -133,7 +133,7 @@ $archived_count = (int)$conn->query("SELECT COUNT(*) as c FROM patients WHERE is
                                 <?php foreach ($patients as $p): ?>
                                 <tr>
                                     <td data-label="Code" style="font-weight:600;color:var(--blue-500);font-size:0.8rem;"><?php echo htmlspecialchars($p['patient_code']); ?></td>
-                                    <td data-label="Name" style="font-weight:500;"><?php echo htmlspecialchars(ucwords(strtolower($p['last_name'])).', '.ucwords(strtolower($p['first_name']))); ?></td>
+                                    <td data-label="Name" style="font-weight:500;"><?php echo htmlspecialchars(ucwords(strtolower($p['last_name'])).', '.ucwords(strtolower($p['first_name']))); ?><?php if (!empty($p['is_incomplete'])): ?> <span class="badge bg-warning" style="font-size:0.65rem;font-weight:600;" title="Created via quick-entry — add date of birth, gender, and address to complete."><i class="bi bi-exclamation-circle"></i> Incomplete</span><?php endif; ?></td>
                                     <td data-label="Gender"><?php echo ucfirst($p['gender'] ?? '—'); ?></td>
                                     <td data-label="Phone"><?php echo htmlspecialchars($p['phone'] ?? '—'); ?></td>
                                     <td data-label="Visits"><span class="badge bg-primary"><?php echo $p['total_visits']; ?></span></td>

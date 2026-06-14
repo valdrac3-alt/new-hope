@@ -60,11 +60,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif (!empty($ec_phone) && !valid_phone($ec_phone)) {
         $error = 'Emergency contact phone is invalid. Please select a country code and enter the local number.';
     } else {
+        // Auto-clear the "incomplete profile" flag once staff fill in the
+        // core fields a quick-entry record skips (DOB, gender, address).
+        // A patient created via the full Add Patient form already has
+        // is_incomplete = FALSE, so this is a no-op for them.
+        $now_complete = (!empty($dob) && !empty($gender) && !empty($address));
+        $clear_incomplete = ($now_complete && !empty($patient['is_incomplete']));
+
         $stmt = $conn->prepare("
             UPDATE patients SET
                 first_name=?, last_name=?, middle_name=?, date_of_birth=?, gender=?, civil_status=?,
                 address=?, occupation=?, phone=?, email=?, emergency_contact_name=?, emergency_contact_phone=?,
-                blood_type=?, allergies=?, medical_notes=?, illness_history=?
+                blood_type=?, allergies=?, medical_notes=?, illness_history=?" .
+                ($clear_incomplete ? ", is_incomplete=FALSE" : "") . "
             WHERE id=?
         ");
         if (!$stmt) {
@@ -76,7 +84,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $blood, $allergies, $med_notes, $ill_history, $id
         ])) {
             log_action($conn, $current_user_id, $current_user_name, 'Edited Patient', 'patients', $id, "Updated: $first_name $last_name");
-            $success = 'Patient record updated successfully.';
+            $success = $clear_incomplete
+                ? 'Patient record updated successfully. Profile is now complete.'
+                : 'Patient record updated successfully.';
             // Refresh patient data
             $patient = $conn->query("SELECT * FROM patients WHERE id = $id LIMIT 1")->fetch(PDO::FETCH_ASSOC);
         } else {

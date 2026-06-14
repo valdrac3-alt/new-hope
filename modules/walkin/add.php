@@ -409,11 +409,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             if (!$patient_id) {
-                // No match — create new patient
+                // No match — create new patient.
+                // is_incomplete = TRUE: this is a quick-entry record (name +
+                // phone only). Patient Records will show an "Incomplete
+                // profile" badge until staff fill in the full chart.
                 $patient_code = generate_code($conn, 'patients', 'PAT');
                 $stmt = $conn->prepare(
-                    "INSERT INTO patients (patient_code, first_name, last_name, phone, registered_by)
-                     VALUES (?,?,?,?,?)"
+                    "INSERT INTO patients (patient_code, first_name, last_name, phone, registered_by, is_incomplete)
+                     VALUES (?,?,?,?,?,TRUE)"
                 );
                 $stmt->execute([$patient_code, $first_name, $last_name, $phone, $current_user_id]);
                 $patient_id = $conn->lastInsertId();
