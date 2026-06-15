@@ -61,6 +61,12 @@ function nav_active($path) {
 
         <li role="presentation"><span class="nav-section-label" aria-hidden="true">Appointments</span></li>
         <li role="presentation">
+            <a href="<?php echo BASE_URL; ?>modules/appointments/queue.php" class="<?php echo nav_active('/appointments/queue'); ?>"
+               <?php echo nav_active('/appointments/queue') ? 'aria-current="page"' : ''; ?>>
+                <i class="bi bi-people-fill" aria-hidden="true"></i><span class="nav-label">Queue</span>
+            </a>
+        </li>
+        <li role="presentation">
             <a href="<?php echo BASE_URL; ?>modules/appointments/list.php" class="<?php echo nav_active('/appointments/list'); ?>"
                <?php echo nav_active('/appointments/list') ? 'aria-current="page"' : ''; ?>>
                 <i class="bi bi-calendar-check-fill" aria-hidden="true"></i><span class="nav-label">Appointments</span>

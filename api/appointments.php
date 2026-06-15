@@ -13,7 +13,7 @@ $action = $_GET['action'] ?? ($_POST['action'] ?? '');
 $body = json_decode(file_get_contents('php://input'), true) ?? [];
 if (!empty($body)) $action = $body['action'] ?? $action;
 
-$mutating_actions = ['update_status', 'delete_appointment'];
+$mutating_actions = ['update_status', 'delete_appointment', 'start_appointment'];
 if (in_array($action, $mutating_actions)) {
     $submitted = $body['_csrf'] ?? ($_POST['_csrf'] ?? '');
     $expected  = $_SESSION['csrf_token'] ?? '';
@@ -307,6 +307,48 @@ if ($action === 'check_duplicate') {
     exit();
 }
 
+// START APPOINTMENT (patient is now in the chair)
+// Sets started_at = NOW(). Only valid for 'confirmed' appointments that
+// haven't started yet. Idempotent: calling it again has no effect.
+if ($action === 'start_appointment') {
+    $id = intval($body['id'] ?? 0);
+
+    if (!$id) {
+        http_response_code(422);
+        echo json_encode(['status' => 'error', 'message' => 'Invalid appointment ID.']);
+        exit();
+    }
+
+    $chk = $conn->prepare("SELECT status, started_at, appointment_date FROM appointments WHERE id = ? LIMIT 1");
+    $chk->execute([$id]);
+    $row = $chk->fetch(PDO::FETCH_ASSOC);
+
+    if (!$row) {
+        http_response_code(404);
+        echo json_encode(['status' => 'error', 'message' => 'Appointment not found.']);
+        exit();
+    }
+    if ($row['status'] !== 'confirmed') {
+        http_response_code(422);
+        echo json_encode(['status' => 'error', 'message' => 'Only confirmed appointments can be started.']);
+        exit();
+    }
+    if ($row['appointment_date'] !== date('Y-m-d')) {
+        http_response_code(422);
+        echo json_encode(['status' => 'error', 'message' => 'Only today\'s appointments can be started.']);
+        exit();
+    }
+
+    if (empty($row['started_at'])) {
+        $stmt = $conn->prepare("UPDATE appointments SET started_at = NOW() WHERE id = ?");
+        $stmt->execute([$id]);
+        log_action($conn, $current_user_id, $current_user_name, 'Started Appointment', 'appointments', $id, 'Patient seen — chair time started.');
+    }
+
+    echo json_encode(['status' => 'success', 'started_at' => date('h:i A')]);
+    exit();
+}
+
 // UPDATE APPOINTMENT STATUS
 if ($action === 'update_status') {
     $id     = intval($body['id'] ?? 0);
@@ -343,7 +385,19 @@ if ($action === 'update_status') {
         }
     }
 
-    $stmt = $conn->prepare("UPDATE appointments SET status = ? WHERE id = ?");
+    if ($status === 'completed') {
+        // Backfill started_at too, in case staff never clicked "Start"
+        // (e.g. completed directly via the dental record flow).
+        $stmt = $conn->prepare("
+            UPDATE appointments
+            SET status = ?,
+                started_at  = COALESCE(started_at, NOW()),
+                finished_at = NOW()
+            WHERE id = ?
+        ");
+    } else {
+        $stmt = $conn->prepare("UPDATE appointments SET status = ? WHERE id = ?");
+    }
     if ($stmt->execute([$status, $id])) {
         log_action($conn, $current_user_id, $current_user_name, 'Updated Appointment Status', 'appointments', $id, "Status changed to: $status");
 
