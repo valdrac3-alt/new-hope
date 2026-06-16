@@ -99,13 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $new_id = $conn->lastInsertId();
                 $stmt->close();
                 if ($appointment_id) {
-                    $upd = $conn->prepare("
-                        UPDATE appointments
-                        SET status = 'completed',
-                            started_at  = COALESCE(started_at, NOW()),
-                            finished_at = NOW()
-                        WHERE id = ?
-                    ");
+                    $upd = $conn->prepare("UPDATE appointments SET status = 'completed' WHERE id = ?");
                     $upd->execute([$appointment_id]);
                     $upd->close();
                 }

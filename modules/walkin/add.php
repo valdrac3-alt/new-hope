@@ -589,6 +589,70 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['_ajax']) && $error) 
 .slot-pill.booked  { background: var(--danger-bg);  color: var(--danger);  border-color: var(--danger-border);  opacity:.8; }
 .slot-pill.past    { background: var(--gray-100);   color: var(--gray-400); border-color: var(--gray-200); opacity:.6; }
 .slot-pill.next    { background: linear-gradient(135deg,var(--blue-500),var(--blue-400)); color:#fff; border-color: var(--blue-500); box-shadow: 0 2px 10px rgba(37,99,235,.3); }
+
+/* ── Walk-in slip ── */
+.slip-box {
+    background: #fff;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 22px 24px;
+    max-width: 420px;
+    font-family: 'DM Sans', sans-serif;
+}
+.slip-header {
+    text-align: center;
+    border-bottom: 2px solid #2563eb;
+    padding-bottom: 14px;
+    margin-bottom: 14px;
+}
+.slip-time {
+    text-align: center;
+    background: #eff6ff;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 14px;
+}
+.tl { font-size: 0.68rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; }
+.tv { font-size: 1.8rem; font-weight: 900; color: #2563eb; line-height: 1.1; font-family: 'Outfit', sans-serif; }
+.slip-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    padding: 6px 0;
+    border-bottom: 1px dashed #e2e8f0;
+    font-size: 0.82rem;
+}
+.slip-row:last-of-type { border-bottom: none; }
+.sl { color: #64748b; font-weight: 500; flex-shrink: 0; }
+.sv { font-weight: 700; color: #0f172a; text-align: right; }
+
+/* ── Print media ── */
+@media print {
+    /* Hide everything that's not the slip */
+    #sidebar, #topbar, .no-print { display: none !important; }
+    .main-content { margin: 0 !important; }
+    .page-content { padding: 0 !important; }
+
+    /* Slip goes full page */
+    #printSlip {
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%;
+        padding: 24px;
+    }
+    .slip-box {
+        max-width: 100%;
+        border: none;
+        border-radius: 0;
+        padding: 0;
+        box-shadow: none;
+    }
+    /* Two-column grid collapses to single column */
+    [style*="grid-template-columns"] {
+        display: block !important;
+    }
+}
 </style>
 </head>
 <body>
@@ -598,7 +662,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['_ajax']) && $error) 
     <div class="page-content">
 
         <!-- Page Header Bar -->
-        <div class="page-header-bar" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:20px;background:var(--white);border:var(--border);border-radius:14px;padding:12px 18px;box-shadow:0 1px 6px rgba(0,0,0,0.05);">
+        <div class="page-header-bar no-print" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:20px;background:var(--white);border:var(--border);border-radius:14px;padding:12px 18px;box-shadow:0 1px 6px rgba(0,0,0,0.05);">
             <div style="display:flex;align-items:center;gap:10px;">
                 <div style="width:40px;height:40px;background:linear-gradient(135deg,var(--blue-500),var(--blue-400));border-radius:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                     <i class="bi bi-person-walking" style="color:#fff;font-size:1.1rem;"></i>
@@ -628,7 +692,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['_ajax']) && $error) 
 
         <!-- Status Banner (closed / full only — green slot shown in header above) -->
         <?php if ($slot_data['is_closed']): ?>
-        <div class="alert alert-warning" style="display:flex;align-items:flex-start;gap:12px;margin-bottom:20px;border-radius:12px;">
+        <div class="alert alert-warning no-print" style="display:flex;align-items:flex-start;gap:12px;margin-bottom:20px;border-radius:12px;">
             <i class="bi bi-calendar-x" style="font-size:1.2rem;flex-shrink:0;margin-top:2px;"></i>
             <div>
                 <strong>Clinic closed today</strong> — <?php echo e($slot_data['reason']); ?><br>
@@ -636,7 +700,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['_ajax']) && $error) 
             </div>
         </div>
         <?php elseif (!empty($slot_data['is_full'])): ?>
-        <div class="alert alert-warning" style="display:flex;align-items:flex-start;gap:12px;margin-bottom:20px;border-radius:12px;">
+        <div class="alert alert-warning no-print" style="display:flex;align-items:flex-start;gap:12px;margin-bottom:20px;border-radius:12px;">
             <i class="bi bi-calendar-check" style="font-size:1.2rem;flex-shrink:0;margin-top:2px;"></i>
             <div>
                 <strong>All slots booked</strong> — <?php echo e($slot_data['reason']); ?><br>
@@ -647,7 +711,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['_ajax']) && $error) 
 
         <!-- Error -->
         <?php if ($error): ?>
-        <div class="alert alert-danger"><i class="bi bi-x-circle-fill"></i> <?php echo e($error); ?></div>
+        <div class="alert alert-danger no-print"><i class="bi bi-x-circle-fill"></i> <?php echo e($error); ?></div>
         <?php endif; ?>
 
         <!-- TWO-COLUMN LAYOUT: Form left, Schedule right -->
@@ -814,7 +878,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['_ajax']) && $error) 
             </div><!-- /left col -->
 
             <!-- RIGHT: Today's slot timeline — always visible -->
-            <div>
+            <div class="no-print">
                 <div class="card" style="position:sticky;top:82px;border-radius:14px;overflow:hidden;">
                     <div class="card-header" style="background:var(--white);border-bottom:var(--border);padding:12px 16px;display:flex;align-items:center;gap:8px;">
                         <i class="bi bi-calendar-day" style="color:var(--blue-500);font-size:1rem;"></i>

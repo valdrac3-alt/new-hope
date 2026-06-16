@@ -336,16 +336,6 @@ $list_stmt->closeCursor();
                             <td data-label="Actions" style="padding:13px 16px;">
                                 <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;">
                                     <?php if ($a['status'] === 'confirmed'): ?>
-                                    <?php if (empty($a['started_at'])): ?>
-                                    <button onclick="startAppointment(<?php echo $a['id']; ?>, this)"
-                                       style="display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border-radius:8px;background:var(--blue-50);color:var(--primary);border:1.5px solid var(--blue-200);font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;" title="Mark patient as currently being seen">
-                                        <i class="bi bi-play-fill"></i> Start
-                                    </button>
-                                    <?php else: ?>
-                                    <span style="display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:8px;background:var(--primary-bg);color:var(--primary);border:1.5px solid var(--blue-200);font-size:0.75rem;font-weight:700;white-space:nowrap;" title="Started at <?php echo date('h:i A', strtotime($a['started_at'])); ?>">
-                                        <i class="bi bi-hourglass-split"></i> In Chair · <?php echo date('h:i A', strtotime($a['started_at'])); ?>
-                                    </span>
-                                    <?php endif; ?>
                                     <a href="<?php echo BASE_URL; ?>modules/treatments/add.php?patient_id=<?php echo $a['patient_id']; ?>&appointment_id=<?php echo $a['id']; ?>"
                                        style="display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border-radius:8px;background:linear-gradient(135deg,var(--success),var(--success-light));color:var(--white);font-size:0.75rem;font-weight:700;text-decoration:none;box-shadow:0 2px 6px rgba(22,163,74,0.3);white-space:nowrap;">
                                         <i class="bi bi-person-check-fill"></i> Check-in
@@ -769,32 +759,6 @@ function doReschedule() {
     });
 }
 var deleteApptId    = null;
-
-function startAppointment(id, btn) {
-    btn.disabled = true;
-    var orig = btn.innerHTML;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Starting...';
-    fetch(_baseUrl+'api/appointments.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'start_appointment', id: id, _csrf: getCsrfToken() })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.status === 'success') {
-            location.reload();
-        } else {
-            btn.disabled = false;
-            btn.innerHTML = orig;
-            alert(data.message || 'Could not start appointment.');
-        }
-    })
-    .catch(function () {
-        btn.disabled = false;
-        btn.innerHTML = orig;
-        alert('Network error. Please try again.');
-    });
-}
 
 function updateStatus(id, btn) {
     document.getElementById('appt_id').value = id;

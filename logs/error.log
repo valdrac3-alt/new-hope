@@ -1,0 +1,16 @@
+[16-Jun-2026 09:10:38 Asia/Manila] [DB ERROR] could not find driver
+[16-Jun-2026 09:13:43 Asia/Manila] [DB ERROR] could not find driver
+[16-Jun-2026 09:26:20 Asia/Manila] [DB ERROR] SQLSTATE[08006] [7] connection to server at "aws-0-ap-southeast-1.pooler.supabase.com" (52.77.146.31), port 6543 failed: FATAL:  (ENOTFOUND) tenant/user postgres.twooztjnjmidxurglysv not found
+connection to server at "aws-0-ap-southeast-1.pooler.supabase.com" (52.77.146.31), port 6543 failed: FATAL:  (ENOTFOUND) tenant/user postgres.twooztjnjmidxurglysv not found
+[16-Jun-2026 09:26:27 Asia/Manila] [DB ERROR] SQLSTATE[08006] [7] connection to server at "aws-0-ap-southeast-1.pooler.supabase.com" (52.77.146.31), port 6543 failed: FATAL:  (ENOTFOUND) tenant/user postgres.twooztjnjmidxurglysv not found
+connection to server at "aws-0-ap-southeast-1.pooler.supabase.com" (52.77.146.31), port 6543 failed: FATAL:  (ENOTFOUND) tenant/user postgres.twooztjnjmidxurglysv not found
+[16-Jun-2026 09:27:58 Asia/Manila] [DB ERROR] SQLSTATE[08006] [7] connection to server at "aws-0-ap-southeast-1.pooler.supabase.com" (52.77.146.31), port 6543 failed: FATAL:  (ENOTFOUND) tenant/user postgres.twooztjnjmidxurglysv not found
+connection to server at "aws-0-ap-southeast-1.pooler.supabase.com" (52.77.146.31), port 6543 failed: FATAL:  (ENOTFOUND) tenant/user postgres.twooztjnjmidxurglysv not found
+[16-Jun-2026 09:38:48 Asia/Manila] [DB ERROR] SQLSTATE[08006] [7] connection to server at "aws-0-ap-southeast-1.pooler.supabase.com" (52.77.146.31), port 6543 failed: FATAL:  (ENOTFOUND) tenant/user postgres.twooztjnjmidxurglysv not found
+connection to server at "aws-0-ap-southeast-1.pooler.supabase.com" (52.77.146.31), port 6543 failed: FATAL:  (ENOTFOUND) tenant/user postgres.twooztjnjmidxurglysv not found
+[16-Jun-2026 09:40:59 Asia/Manila] [DB ERROR] SQLSTATE[08006] [7] connection to server at "aws-0-ap-southeast-1.pooler.supabase.com" (52.77.146.31), port 6543 failed: FATAL:  (ENOTFOUND) tenant/user postgres.twooztjnjmidxurglysv not found
+connection to server at "aws-0-ap-southeast-1.pooler.supabase.com" (52.77.146.31), port 6543 failed: FATAL:  (ENOTFOUND) tenant/user postgres.twooztjnjmidxurglysv not found
+[16-Jun-2026 09:57:19 Asia/Manila] [DB ERROR] SQLSTATE[08006] [7] connection to server at "aws-0-ap-northeast-1.pooler.supabase.com" (35.79.125.133), port 6543 failed: FATAL:  (ENOTFOUND) tenant/user postgres.xbwpeggqrcfbapgbdynp not found
+connection to server at "aws-0-ap-northeast-1.pooler.supabase.com" (35.79.125.133), port 6543 failed: FATAL:  (ENOTFOUND) tenant/user postgres.xbwpeggqrcfbapgbdynp not found
+[16-Jun-2026 09:57:26 Asia/Manila] [DB ERROR] SQLSTATE[08006] [7] connection to server at "aws-0-ap-northeast-1.pooler.supabase.com" (35.79.125.133), port 6543 failed: FATAL:  (ENOTFOUND) tenant/user postgres.xbwpeggqrcfbapgbdynp not found
+connection to server at "aws-0-ap-northeast-1.pooler.supabase.com" (35.79.125.133), port 6543 failed: FATAL:  (ENOTFOUND) tenant/user postgres.xbwpeggqrcfbapgbdynp not found
