@@ -46,7 +46,7 @@ if ($action === 'get_slots') {
 
     $bl_stmt = $conn->prepare("SELECT id FROM blocked_dates WHERE blocked_date = ? LIMIT 1");
     $bl_stmt->execute([$date]);
-    $blocked = $bl_stmt->rowCount();
+    $blocked = $bl_stmt->fetch(PDO::FETCH_COLUMN) ? 1 : 0;
     if ($blocked > 0) {
         echo json_encode(['status' => 'ok', 'slots' => [], 'message' => 'Clinic is closed on this date.']);
         exit();

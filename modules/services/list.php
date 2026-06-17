@@ -53,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         // Check for duplicate name
         $chk = $conn->prepare("SELECT id FROM services WHERE service_name = ? LIMIT 1");
         $chk->execute([$service_name]);
-        $chk->rowCount() > 0 ? $dup = true : $dup = false;
+        $dup = (bool)$chk->fetch(PDO::FETCH_COLUMN);
         $chk->close();
 
         if ($dup) {
@@ -94,7 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         // Check for duplicate name on OTHER records
         $chk = $conn->prepare("SELECT id FROM services WHERE service_name = ? AND id != ? LIMIT 1");
         $chk->execute([$service_name, $sid]);
-        $chk->rowCount() > 0 ? $dup = true : $dup = false;
+        $dup = (bool)$chk->fetch(PDO::FETCH_COLUMN);
         $chk->close();
 
         if ($dup) {

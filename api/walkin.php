@@ -13,7 +13,7 @@ $now   = time();
 
 $bl_stmt = $conn->prepare("SELECT id FROM blocked_dates WHERE blocked_date = ? LIMIT 1");
 $bl_stmt->execute([$today]);
-$blocked = $bl_stmt->rowCount();
+$blocked = $bl_stmt->fetch(PDO::FETCH_COLUMN) ? 1 : 0;
 if ($blocked > 0) {
     echo json_encode(['is_closed' => true, 'reason' => 'Today is a blocked date (holiday or clinic closed).', 'slot' => null, 'label' => null]);
     exit();

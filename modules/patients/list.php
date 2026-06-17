@@ -85,7 +85,7 @@ $stats_row = $conn->query("
         SUM(CASE WHEN gender = 'male' THEN 1 ELSE 0 END) as males,
         SUM(CASE WHEN gender = 'female' THEN 1 ELSE 0 END) as females,
         SUM(CASE WHEN created_at >= DATE_TRUNC('month', NOW()) THEN 1 ELSE 0 END) as new_this_month,
-        SUM(CASE WHEN is_incomplete = 1 THEN 1 ELSE 0 END) as incomplete_count
+        SUM(CASE WHEN is_incomplete = TRUE THEN 1 ELSE 0 END) as incomplete_count
     FROM patients WHERE is_active = TRUE
 ")->fetch(PDO::FETCH_ASSOC);
 
