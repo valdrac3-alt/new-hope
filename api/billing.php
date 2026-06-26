@@ -34,7 +34,7 @@ if ($action === 'get_appointments') {
         exit();
     }
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    $stmt->close();
+    $stmt = null;
 
     // Cast price to float — MySQLi returns DECIMAL columns as strings
     foreach ($rows as &$row) {

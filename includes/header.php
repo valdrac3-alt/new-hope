@@ -23,13 +23,13 @@ if (isset($conn) && (time() - $cache_time) > 30) {
     if ($nr) {
         $nr->execute([$current_user_id]);
         $notif_count = (int) $nr->fetch(PDO::FETCH_ASSOC)['c'];
-        $nr->close();
+        $nr = null;
     }
     $nq = $conn->prepare("SELECT id, type, title, message, link, is_read, created_at FROM notifications WHERE (user_id = ? OR user_id IS NULL) ORDER BY created_at DESC LIMIT 8");
     if ($nq) {
         $nq->execute([$current_user_id]);
         $recent_notifs = $nq->fetchAll(PDO::FETCH_ASSOC);
-        $nq->close();
+        $nq = null;
     }
     // Save to session cache
     $_SESSION[$cache_key . '_time']   = time();

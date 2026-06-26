@@ -94,7 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 $error = 'Failed to save patient. Please try again.';
             }
-            $stmt->close();
+            $stmt = null;
         }
     }
 }
@@ -284,9 +284,7 @@ function old($key, $default = '') {
             </div>
         </div>
     </div>
-</div>
 
-<?php include '../../includes/footer.php'; ?>
 <script>
 // Extra JS validation - highlight empty fields before submit
 document.getElementById('patientForm').addEventListener('submit', function(e) {
@@ -318,5 +316,7 @@ document.querySelectorAll('[required]').forEach(function(input) {
     });
 });
 </script>
+</div>
+<?php include '../../includes/footer.php'; ?>
 </body>
 </html>

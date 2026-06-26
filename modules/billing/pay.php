@@ -5,6 +5,9 @@ require_once '../../includes/config.php';
 require_once '../../includes/db.php';
 require_once '../../includes/auth.php';
 
+$current_user_id = $_SESSION['user_id'] ?? 0;
+$current_user_name = $_SESSION['user_name'] ?? '';
+
 $page_title = 'Record Payment';
 $id = intval($_GET['id'] ?? 0);
 if (!$id) { header('Location: list.php'); exit(); }
@@ -52,9 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($stmt->rowCount() < 1) {
             $error = 'Failed to record payment. Please try again.';
-            $stmt->close();
         } else {
-            $stmt->close();
             log_action($conn, $current_user_id, $current_user_name,
                 'Recorded Payment', 'billing', $id,
                 "Bill: {$bill['bill_code']} | Added: ₱$add_payment | Method: $payment_method | New status: $new_status"
@@ -167,8 +168,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
 
     </div>
-</div>
-<?php include '../../includes/footer.php'; ?>
 <script>
 var balance = <?php echo $balance; ?>;
 
@@ -191,5 +190,7 @@ function toggleRef(method) {
     document.getElementById('bank_ref_row').style.display  = method === 'bank'  ? 'block' : 'none';
 }
 </script>
+</div>
+<?php include '../../includes/footer.php'; ?>
 </body>
 </html>

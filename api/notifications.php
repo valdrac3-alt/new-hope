@@ -19,7 +19,7 @@ if ($action === 'mark_read') {
         // Without this, any logged-in user could mark any other user's notification as read.
         $stmt = $conn->prepare("UPDATE notifications SET is_read = TRUE WHERE id = ? AND (user_id = ? OR user_id IS NULL)");
         $stmt->execute([$id, $current_user_id]);
-        $stmt->close();
+        $stmt = null;
         // Bust the session cache so the next page load reflects the updated count
         $cache_key = 'notif_cache_' . $current_user_id;
         unset($_SESSION[$cache_key . '_time'], $_SESSION[$cache_key . '_count'], $_SESSION[$cache_key . '_recent']);
@@ -35,7 +35,7 @@ if ($action === 'mark_read') {
 if ($action === 'mark_all_read') {
     $stmt = $conn->prepare("UPDATE notifications SET is_read = TRUE WHERE user_id = ? OR user_id IS NULL");
     $stmt->execute([$current_user_id]);
-    $stmt->close();
+    $stmt = null;
     // Bust the session cache so the next page load reflects the updated count
     $cache_key = 'notif_cache_' . $current_user_id;
     unset($_SESSION[$cache_key . '_time'], $_SESSION[$cache_key . '_count'], $_SESSION[$cache_key . '_recent']);
@@ -52,7 +52,7 @@ if ($action === 'get_count') {
         exit();
     }
     $count = (int)$stmt->fetch(PDO::FETCH_ASSOC)['c'];
-    $stmt->close();
+    $stmt = null;
     echo json_encode(['status' => 'success', 'count' => $count]);
     exit();
 }

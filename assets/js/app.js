@@ -270,6 +270,22 @@ function initPage() {
             // Destroy charts before removing their canvases
             destroyChartsIn(curMain);
 
+            // Dispose all Bootstrap modal instances before wiping the DOM.
+            // Without this, Bootstrap's internal WeakMap keeps stale references
+            // to the old elements, causing getOrCreateInstance() to behave
+            // unpredictably on the new page and leaving orphaned backdrops.
+            if (window.bootstrap && window.bootstrap.Modal) {
+                curMain.querySelectorAll('.modal').forEach(function (el) {
+                    var inst = bootstrap.Modal.getInstance(el);
+                    if (inst) { try { inst.dispose(); } catch (e) {} }
+                });
+            }
+            // Clean up any leftover backdrop / body state from open modals
+            document.querySelectorAll('.modal-backdrop').forEach(function (el) { el.remove(); });
+            document.body.classList.remove('modal-open');
+            document.body.style.removeProperty('overflow');
+            document.body.style.removeProperty('padding-right');
+
             curMain.innerHTML = newMain.innerHTML;
             if (doc.title) document.title = doc.title;
             if (push !== false) history.pushState({ pjax: true, url: url }, doc.title || '', url);
@@ -318,21 +334,26 @@ function initPage() {
 // ─── ONE-TIME SETUP ───────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function () {
 
-    var sidebar = document.getElementById('sidebar');
-    if (sidebar) {
-        var backdrop = document.createElement('div');
-        backdrop.id = 'sidebar-backdrop';
-        backdrop.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;cursor:pointer;';
-        document.body.appendChild(backdrop);
-        new MutationObserver(function () {
-            backdrop.style.display =
-                (window.innerWidth <= 768 && sidebar.classList.contains('mobile-open')) ? 'block' : 'none';
-        }).observe(sidebar, { attributes: true, attributeFilter: ['class'] });
-        backdrop.addEventListener('click', function () {
-            sidebar.classList.remove('mobile-open');
-            backdrop.style.display = 'none';
-        });
-    }
+    // ── SMOOTH ALERT DISMISS ──────────────────────────────────────────────
+    // Bootstrap fires 'close.bs.alert' before the element is removed.
+    // We add the .dismissing class which triggers a CSS collapse animation,
+    // then let Bootstrap finish removing it after the transition.
+    document.addEventListener('close.bs.alert', function (e) {
+        var alert = e.target;
+        if (!alert) return;
+        e.preventDefault(); // Stop Bootstrap from removing immediately
+        alert.classList.add('dismissing');
+        // After transition completes, let Bootstrap do the actual removal
+        setTimeout(function () {
+            alert.classList.remove('dismissing'); // restore so Bootstrap can hide
+            var bsAlert = window.bootstrap && bootstrap.Alert ? bootstrap.Alert.getInstance(alert) : null;
+            if (bsAlert) {
+                bsAlert.dispose();
+            }
+            alert.style.display = 'none';
+            alert.remove();
+        }, 300); // matches longest transition (max-height 0.28s)
+    });
 
     document.addEventListener('keydown', function (e) {
         var tag = document.activeElement ? document.activeElement.tagName : '';

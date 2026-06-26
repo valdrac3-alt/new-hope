@@ -8,7 +8,7 @@
 // Anything else falls through to normal PHP execution.
 // ============================================================
 
-$uri  = urldecode(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
+$uri  = urldecode(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/');
 $file = __DIR__ . $uri;
 
 // Serve existing static files (css, js, images, fonts, etc.)

@@ -1,7 +1,7 @@
 FROM dunglas/frankenphp:php8.4-bookworm
 
-# v3 - PostgreSQL only
-RUN install-php-extensions pdo_pgsql pgsql mbstring curl gd zip opcache
+# v3 - MySQL
+RUN install-php-extensions mysqli pdo_mysql mbstring curl gd zip opcache
 
 # Session storage
 RUN mkdir -p /tmp/php_sessions && chmod 1777 /tmp/php_sessions && \

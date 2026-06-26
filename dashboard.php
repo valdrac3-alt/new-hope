@@ -31,7 +31,6 @@ $completed_last_month = (int)db_val($conn, "SELECT COUNT(*) as c FROM appointmen
 $revenue_last_month   = (float)db_val($conn, "SELECT COALESCE(SUM(amount_paid),0) as c FROM bills WHERE DATE(created_at) BETWEEN '$last_month_start' AND '$last_month_end'", 'c', 0.0);
 
 $unpaid_count = (int)db_val($conn, "SELECT COUNT(*) as c FROM bills WHERE status IN ('unpaid','partial')");
-$unpaid_total = (float)db_val($conn, "SELECT COALESCE(SUM(amount_due - amount_paid),0) as c FROM bills WHERE status IN ('unpaid','partial')", 'c', 0.0);
 
 $today_schedule = $conn->query("
     SELECT a.appointment_time, a.status, a.appointment_code, a.patient_id,
@@ -52,7 +51,7 @@ $notif_stmt = $conn->prepare("SELECT * FROM notifications WHERE (user_id = ? OR 
 if ($notif_stmt) {
     $notif_stmt->execute([$current_user_id]);
     $notifications = $notif_stmt->fetchAll(PDO::FETCH_ASSOC);
-    $notif_stmt->close();
+    $notif_stmt = null;
 }
 
 $recent_appts_result = $conn->query("
@@ -75,71 +74,12 @@ function trend($current, $previous) {
     return ['pct' => abs($pct), 'up' => $pct >= 0, 'has' => $pct != 0];
 }
 $rev_trend = trend($revenue_month,    $revenue_last_month);
-$cmp_trend = trend($completed_month,  $completed_last_month);
 $pat_trend = trend($patients_this_month, $patients_last_month);
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head><?php include 'includes/head.php'; ?>
 <style>
-/* ── Welcome Banner ─────────────────────────────────────── */
-.welcome-banner {
-    background: linear-gradient(135deg, #041526 0%, #095454 60%, #0d6e6e 100%);
-    border-radius: 16px;
-    padding: 26px 30px;
-    color: #fff;
-    position: relative;
-    overflow: hidden;
-    margin-bottom: 24px;
-}
-.welcome-banner::before {
-    content: '';
-    position: absolute; top: -80px; right: -80px;
-    width: 260px; height: 260px; border-radius: 50%;
-    background: radial-gradient(circle, rgba(201,168,76,0.18) 0%, transparent 70%);
-    pointer-events: none;
-}
-.welcome-greeting {
-    font-size: 0.73rem; font-weight: 600; letter-spacing: 0.1em;
-    text-transform: uppercase; color: #e8c96d; margin-bottom: 6px; opacity: 0.9;
-}
-.welcome-name {
-    font-family: 'Clash Display', 'DM Serif Display', serif;
-    font-size: 1.6rem; font-weight: 700; letter-spacing: -0.03em; line-height: 1.2;
-}
-.welcome-sub { font-size: 0.83rem; color: rgba(255,255,255,0.52); margin-top: 7px; }
-.welcome-stats {
-    display: flex; gap: 26px; margin-top: 18px;
-    flex-wrap: wrap;
-}
-.welcome-stat-item { display: flex; flex-direction: column; }
-.welcome-stat-val {
-    font-family: 'Clash Display', 'DM Serif Display', serif;
-    font-size: 1.45rem; font-weight: 700; color: #fff; letter-spacing: -0.03em;
-}
-.welcome-stat-lbl { font-size: 0.68rem; color: rgba(255,255,255,0.42); margin-top: 2px; }
-.welcome-stat-sep { width: 1px; background: rgba(255,255,255,0.12); align-self: stretch; }
-.welcome-actions { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
-.btn-welcome {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 8px 16px; border-radius: 8px;
-    font-size: 0.83rem; font-weight: 600; cursor: pointer;
-    transition: all 0.18s ease; text-decoration: none; font-family: inherit;
-}
-.btn-welcome-primary {
-    background: #c9a84c; color: #020c18;
-    border: 1.5px solid #e8c96d;
-    box-shadow: 0 4px 16px rgba(201,168,76,0.28);
-}
-.btn-welcome-primary:hover { background: #e8c96d; transform: translateY(-1px); }
-.btn-welcome-outline {
-    background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.85);
-    border: 1.5px solid rgba(255,255,255,0.15); backdrop-filter: blur(4px);
-}
-.btn-welcome-outline:hover { background: rgba(255,255,255,0.18); color: #fff; }
-
-/* ── Dashboard-specific overrides ──────────────────────── */
-
 /* KPI cards */
 .dash-kpi-grid {
     display: grid;
@@ -416,16 +356,16 @@ $pat_trend = trend($patients_this_month, $patients_last_month);
         <?php if (!empty($notifications)): ?>
         <div style="margin-bottom:16px;">
             <?php foreach ($notifications as $n): ?>
-            <div class="alert alert-info alert-dismissible" style="margin-bottom:8px;border-radius:10px;font-size:0.82rem;">
-                <i class="bi bi-bell-fill"></i>
-                <div>
+            <div class="alert alert-info alert-dismissible d-flex align-items-center gap-2" style="margin-bottom:8px;border-radius:10px;font-size:0.82rem;">
+                <i class="bi bi-bell-fill" style="flex-shrink:0;opacity:0.7;"></i>
+                <div style="flex:1;min-width:0;">
                     <strong><?php echo htmlspecialchars($n['title']); ?></strong> —
                     <?php echo htmlspecialchars($n['message']); ?>
                     <span style="font-size:0.73rem;color:var(--gray-400);margin-left:8px;">
                         <?php echo date('M d, h:i A', strtotime($n['created_at'])); ?>
                     </span>
                 </div>
-                <button type="button" class="btn-close" data-bs-dismiss="alert" onclick="markRead(<?php echo $n['id']; ?>)"></button>
+                <button type="button" class="btn-close" style="flex-shrink:0;" data-bs-dismiss="alert" onclick="markRead(<?php echo $n['id']; ?>)"></button>
             </div>
             <?php endforeach; ?>
         </div>
@@ -500,7 +440,7 @@ $pat_trend = trend($patients_this_month, $patients_last_month);
                         <tr onclick="window.location='modules/appointments/list.php'">
                             <td><span class="appt-code"><?php echo e($a['appointment_code']); ?></span></td>
                             <td>
-                                <span class="appt-name"><?php echo e(ucwords(strtolower($a['patient_name']))); ?></span>
+                                <span class="appt-name"><?php echo e(ucwords(strtolower($a['patient_name'] ?? ''))); ?></span>
                             </td>
                             <td>
                                 <span class="appt-service"><?php echo e($a['service_name'] ?? '—'); ?></span>
@@ -567,7 +507,7 @@ $pat_trend = trend($patients_this_month, $patients_last_month);
                             </div>
                             <div style="flex:1;min-width:0;">
                                 <div style="font-size:0.8rem;font-weight:600;color:var(--gray-800);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                                    <?php echo e(ucwords(strtolower($ts['patient_name']))); ?>
+                                    <?php echo e(ucwords(strtolower($ts['patient_name'] ?? ''))); ?>
                                 </div>
                                 <div style="font-size:0.7rem;color:var(--gray-400);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
                                     <?php echo e($ts['service_name'] ?? '—'); ?>
@@ -628,8 +568,6 @@ $pat_trend = trend($patients_this_month, $patients_last_month);
         </div><!-- /dash-body -->
 
     </div>
-</div>
-<?php include 'includes/footer.php'; ?>
 <script>
 function markRead(id) {
     fetch('<?php echo BASE_URL; ?>api/notifications.php', {
@@ -639,5 +577,7 @@ function markRead(id) {
     });
 }
 </script>
+</div>
+<?php include 'includes/footer.php'; ?>
 </body>
 </html>

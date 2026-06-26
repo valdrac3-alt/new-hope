@@ -8,36 +8,52 @@ require_admin();
 
 $page_title = 'Reports';
 
-$report_type = $_GET['type'] ?? 'monthly';
 $month       = $_GET['month'] ?? date('Y-m');
-$year        = $_GET['year'] ?? date('Y');
+
+// SECURITY: strictly validate month format (YYYY-MM) before using it anywhere —
+// this value comes straight from the query string, so we never trust it as-is.
+if (!preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $month)) {
+    $month = date('Y-m');
+}
 
 // Monthly Appointments Report
 $month_start = $month . '-01';
 $month_end   = date('Y-m-t', strtotime($month . '-01'));
 
-$monthly_appts = $conn->query("
+$stmt = $conn->prepare("
     SELECT a.appointment_code, CONCAT(p.first_name,' ',p.last_name) as patient_name,
-           s.service_name, a.appointment_date, a.appointment_time,
-           a.status, b.amount_paid
+        s.service_name, a.appointment_date, a.appointment_time,
+        a.status, b.amount_paid
     FROM appointments a
     LEFT JOIN patients p ON a.patient_id = p.id
     LEFT JOIN services s ON a.service_id = s.id
     LEFT JOIN bills b ON b.appointment_id = a.id
-    WHERE a.appointment_date BETWEEN '$month_start' AND '$month_end'
+    WHERE a.appointment_date BETWEEN ? AND ?
     ORDER BY a.appointment_date ASC, a.appointment_time ASC
-")->fetchAll(PDO::FETCH_ASSOC);
+");
+$stmt->execute([$month_start, $month_end]);
+$monthly_appts = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$stmt->closeCursor();
+$stmt = null;
 
-$monthly_revenue = $conn->query("
+$stmt = $conn->prepare("
     SELECT COALESCE(SUM(amount_paid),0) as total
     FROM bills
-    WHERE DATE(created_at) BETWEEN '$month_start' AND '$month_end'
-")->fetch(PDO::FETCH_ASSOC)['total'];
+    WHERE DATE(created_at) BETWEEN ? AND ?
+");
+$stmt->execute([$month_start, $month_end]);
+$monthly_revenue = $stmt->fetch(PDO::FETCH_ASSOC)['total'];
+$stmt->closeCursor();
+$stmt = null;
 
-$total_patients_month = $conn->query("
+$stmt = $conn->prepare("
     SELECT COUNT(DISTINCT patient_id) as c FROM appointments
-    WHERE appointment_date BETWEEN '$month_start' AND '$month_end'
-")->fetch(PDO::FETCH_ASSOC)['c'];
+    WHERE appointment_date BETWEEN ? AND ?
+");
+$stmt->execute([$month_start, $month_end]);
+$total_patients_month = $stmt->fetch(PDO::FETCH_ASSOC)['c'];
+$stmt->closeCursor();
+$stmt = null;
 ?><!DOCTYPE html>
 <html lang="en">
 <head><?php include '../../includes/head.php'; ?></head>
@@ -66,7 +82,7 @@ $total_patients_month = $conn->query("
         <form method="GET" class="row g-2 mb-4">
             <div class="col-md-3">
                 <label class="form-label small">Month</label>
-                <input type="month" name="month" class="form-control form-control-sm" value="<?php echo $month; ?>">
+                <input type="month" name="month" class="form-control form-control-sm" value="<?php echo htmlspecialchars($month); ?>">
             </div>
             <div class="col-md-2 d-flex align-items-end">
                 <button type="submit" class="btn btn-sm btn-primary w-100">Generate</button>

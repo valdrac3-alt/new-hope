@@ -27,8 +27,7 @@ $walkin_doctors = sc_get('doc_walkin') ?? sc_set('doc_walkin', $conn->query(
 
 // WALK-IN NEXT SLOT LOGIC
 //
-// Correct approach (as described in system documentation):
-//
+// Correct approach:
 //   1. Get clinic schedule for today (open_time, close_time, duration)
 //   2. Get ALL appointments already booked today
 //   3. Generate every possible slot from open_time → close_time
@@ -309,9 +308,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $is_today_appt = false;
     }
 
-    // Phone is required for future bookings (needed for reminders)
-    if (empty($error) && $mode === 'appointment' && empty($phone)) {
-        $error = 'Phone number is required for advance bookings (used for appointment reminders).';
+    // Phone is only required for NEW patients on advance bookings (needed for reminders).
+    // Existing/returning patients already have their phone on record.
+    $existing_patient_id_pre = intval($_POST['existing_patient_id'] ?? 0);
+    if (empty($error) && $mode === 'appointment' && $existing_patient_id_pre === 0 && empty($phone)) {
+        $error = 'Phone number is required for new patients making advance bookings (used for appointment reminders).';
+    }
+    // Service is required for all walk-ins
+    if (empty($error) && $mode === 'walkin' && empty($service_id)) {
+        $error = 'Please select a service for this walk-in.';
     }
     // Prefer selected_time (slot picker) over manual_time
     $slot_input = !empty($selected_time) ? $selected_time : $manual_time;
@@ -823,8 +828,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['_ajax']) && $error) 
                                 <div id="phone_hint" style="font-size:0.72rem;margin-top:3px;color:var(--gray-400);">Optional for today's walk-ins</div>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Service <span style="font-size:0.72rem;color:var(--gray-400)">(optional)</span></label>
-                                <select name="service_id" class="form-select">
+                                <label class="form-label">Service <span style="color:var(--danger)">*</span></label>
+                                <select name="service_id" id="sf_service_id" class="form-select" required>
                                     <option value="">Select Service</option>
                                     <?php foreach ($services as $s): ?>
                                     <option value="<?php echo $s['id']; ?>"><?php echo e($s['service_name']); ?> — ₱<?php echo number_format($s['price'], 2); ?></option>
@@ -947,8 +952,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['_ajax']) && $error) 
         </div><!-- /grid -->
 
     </div>
-</div>
-<?php include '../../includes/footer.php'; ?>
 
 <script>
 /* ── Standalone Walk-in Page — Returning Patient Search ─────────── */
@@ -1040,5 +1043,7 @@ function enableNameFields(on) {
     });
 }
 </script>
+</div>
+<?php include '../../includes/footer.php'; ?>
 </body>
 </html>

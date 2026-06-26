@@ -1,6 +1,5 @@
 <?php
 // API: return chart data for the analytics dashboard.
-// Migrated to PDO / PostgreSQL (Supabase)
 
 require_once '../includes/config.php';
 require_once '../includes/db.php';
@@ -26,14 +25,14 @@ function run_query_val(PDO $conn, string $sql, string $field = 'c') {
     return $rows[0][$field] ?? 0;
 }
 
-// PATIENTS PER MONTH (last 12 months) — PostgreSQL date functions
+// PATIENTS PER MONTH (last 12 months)
 if ($action === 'patients_per_month') {
     $rows = run_query($conn, "
-        SELECT TO_CHAR(created_at, 'Mon YYYY') as label,
-               TO_CHAR(created_at, 'YYYY-MM')  as sort_key,
+        SELECT DATE_FORMAT(created_at, '%b %Y') as label,
+               DATE_FORMAT(created_at, '%Y-%m')  as sort_key,
                COUNT(*) as total
         FROM patients
-        WHERE created_at >= NOW() - INTERVAL '12 months'
+        WHERE created_at >= NOW() - INTERVAL 12 MONTH
         GROUP BY sort_key, label
         ORDER BY sort_key ASC
     ");
@@ -48,11 +47,11 @@ if ($action === 'patients_per_month') {
 // APPOINTMENTS PER MONTH (last 12 months)
 if ($action === 'appointments_per_month') {
     $rows = run_query($conn, "
-        SELECT TO_CHAR(appointment_date, 'Mon YYYY') as label,
-               TO_CHAR(appointment_date, 'YYYY-MM')  as sort_key,
+        SELECT DATE_FORMAT(appointment_date, '%b %Y') as label,
+               DATE_FORMAT(appointment_date, '%Y-%m')  as sort_key,
                COUNT(*) as total
         FROM appointments
-        WHERE appointment_date >= NOW() - INTERVAL '12 months'
+        WHERE appointment_date >= NOW() - INTERVAL 12 MONTH
         GROUP BY sort_key, label
         ORDER BY sort_key ASC
     ");
@@ -88,8 +87,8 @@ if ($action === 'status_breakdown') {
     $rows = run_query($conn, "
         SELECT status as label, COUNT(*) as total
         FROM appointments
-        WHERE appointment_date >= DATE_TRUNC('month', NOW())
-          AND appointment_date <  DATE_TRUNC('month', NOW()) + INTERVAL '1 month'
+        WHERE appointment_date >= DATE_FORMAT(NOW(), '%Y-%m-01')
+          AND appointment_date <  DATE_ADD(DATE_FORMAT(NOW(), '%Y-%m-01'), INTERVAL 1 MONTH)
         GROUP BY status
     ");
     echo json_encode([
@@ -100,17 +99,16 @@ if ($action === 'status_breakdown') {
     exit();
 }
 
-// PEAK BOOKING DAYS (all time) — PostgreSQL day name
+// PEAK BOOKING DAYS (all time)
 if ($action === 'peak_days') {
     $rows = run_query($conn, "
-        SELECT TO_CHAR(appointment_date, 'Day') as label,
-               EXTRACT(DOW FROM appointment_date)::int as sort_key,
+        SELECT DATE_FORMAT(appointment_date, '%a') as label,
+               DAYOFWEEK(appointment_date) as sort_key,
                COUNT(*) as total
         FROM appointments
         GROUP BY sort_key, label
         ORDER BY sort_key ASC
     ");
-    // Trim whitespace from TO_CHAR Day output
     foreach ($rows as &$r) { $r['label'] = trim($r['label']); }
     echo json_encode([
         'status' => 'ok',
@@ -123,8 +121,8 @@ if ($action === 'peak_days') {
 // PEAK BOOKING HOURS (all time)
 if ($action === 'peak_hours') {
     $rows = run_query($conn, "
-        SELECT TO_CHAR(appointment_time::time, 'HH12:00 AM') as label,
-               EXTRACT(HOUR FROM appointment_time::time)::int as sort_key,
+        SELECT DATE_FORMAT(appointment_time, '%h:00 %p') as label,
+               HOUR(appointment_time) as sort_key,
                COUNT(*) as total
         FROM appointments
         GROUP BY sort_key, label
@@ -166,11 +164,11 @@ if ($action === 'new_vs_returning') {
 // REVENUE PER MONTH (last 6 months)
 if ($action === 'revenue_per_month') {
     $rows = run_query($conn, "
-        SELECT TO_CHAR(created_at, 'Mon YYYY') as label,
-               TO_CHAR(created_at, 'YYYY-MM')  as sort_key,
+        SELECT DATE_FORMAT(created_at, '%b %Y') as label,
+               DATE_FORMAT(created_at, '%Y-%m')  as sort_key,
                SUM(amount_paid) as total
         FROM bills
-        WHERE created_at >= NOW() - INTERVAL '6 months'
+        WHERE created_at >= NOW() - INTERVAL 6 MONTH
         GROUP BY sort_key, label
         ORDER BY sort_key ASC
     ");
@@ -203,7 +201,7 @@ if ($action === 'kpi_summary') {
     $completed = (int) $stmt->fetch(PDO::FETCH_ASSOC)['c'];
 
     $stmt = $conn->prepare("
-        SELECT COALESCE(SUM(amount_paid), 0) as c FROM bills WHERE created_at::date >= ?
+        SELECT COALESCE(SUM(amount_paid), 0) as c FROM bills WHERE DATE(created_at) >= ?
     ");
     $stmt->execute([$month_start]);
     $revenue = (float) $stmt->fetch(PDO::FETCH_ASSOC)['c'];

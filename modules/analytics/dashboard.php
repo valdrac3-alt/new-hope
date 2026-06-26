@@ -32,7 +32,7 @@ $sql_prev_end   = $prev_end;
 
 // ── Range filter (overrides month window when set) ────────────
 $range = $_GET['range'] ?? 'month';
-if (!in_array($range, ['7days','30days','month','year'])) $range = 'month';
+if (!in_array($range, ['7days','month','year'])) $range = 'month';
 if ($range === '7days') {
     $sql_cur_start = date('Y-m-d', strtotime('-6 days'));
     $sql_cur_end   = date('Y-m-d');
@@ -117,10 +117,8 @@ $status_map = [];
 foreach ($status_breakdown as $row) { $status_map[$row['status']] = (int)$row['total']; }
 $total_this_month = array_sum($status_map);
 $completed_count  = $status_map['completed'] ?? 0;
-$booking_rate     = $total_this_month > 0 ? round(($completed_count / $total_this_month) * 100, 1) : 0;
 
 $total_patients_this_month = $new_patients + $returning;
-$retention_pct = $total_patients_this_month > 0 ? round(($returning / $total_patients_this_month) * 100) : 0;
 
 // ============================================================
 // KPI — Previous Month (for trend arrows)
@@ -153,10 +151,8 @@ $prev_status = $conn->query("
 $prev_map   = [];
 foreach ($prev_status as $r) { $prev_map[$r['status']] = (int)$r['total']; }
 $prev_total = array_sum($prev_map);
-$prev_booking_rate = $prev_total > 0 ? round((($prev_map['completed'] ?? 0) / $prev_total) * 100, 1) : 0;
 
 $prev_total_patients = $prev_new_patients + $prev_returning;
-$prev_retention_pct  = $prev_total_patients > 0 ? round(($prev_returning / $prev_total_patients) * 100) : 0;
 
 // Helper: trend badge
 function trend_badge(float $now, float $prev, string $suffix = '%'): string {
@@ -174,11 +170,11 @@ function trend_badge(float $now, float $prev, string $suffix = '%'): string {
 // Revenue per Month (last 6 months) + Forecast
 // ============================================================
 $revenue_per_month = $conn->query("
-    SELECT TO_CHAR(created_at, 'Mon YYYY') as month,
-           TO_CHAR(created_at, 'YYYY-MM') as sort_key,
+    SELECT DATE_FORMAT(created_at, '%b %Y') as month,
+           DATE_FORMAT(created_at, '%Y-%m') as sort_key,
            COALESCE(SUM(amount_paid), 0) as total
     FROM bills
-    WHERE created_at >= NOW() - INTERVAL '6 months'
+    WHERE created_at >= NOW() - INTERVAL 6 MONTH
     GROUP BY sort_key, month ORDER BY sort_key ASC
 ")->fetchAll(PDO::FETCH_ASSOC);
 
@@ -228,13 +224,13 @@ $top_services = $top_services ? $top_services->fetchAll(PDO::FETCH_ASSOC) : [];
 // ============================================================
 $patient_breakdown = $conn->query("
     SELECT
-        TO_CHAR(a.appointment_date, 'Mon YYYY') as month,
-        TO_CHAR(a.appointment_date, 'YYYY-MM') as sort_key,
-        SUM(CASE WHEN TO_CHAR(p.created_at,'YYYY-MM') = TO_CHAR(a.appointment_date,'YYYY-MM') THEN 1 ELSE 0 END) as new_count,
-        SUM(CASE WHEN TO_CHAR(p.created_at,'YYYY-MM') != TO_CHAR(a.appointment_date,'YYYY-MM') THEN 1 ELSE 0 END) as returning_count
+        DATE_FORMAT(a.appointment_date, '%b %Y') as month,
+        DATE_FORMAT(a.appointment_date, '%Y-%m') as sort_key,
+        SUM(CASE WHEN DATE_FORMAT(p.created_at,'%Y-%m') = DATE_FORMAT(a.appointment_date,'%Y-%m') THEN 1 ELSE 0 END) as new_count,
+        SUM(CASE WHEN DATE_FORMAT(p.created_at,'%Y-%m') != DATE_FORMAT(a.appointment_date,'%Y-%m') THEN 1 ELSE 0 END) as returning_count
     FROM appointments a
     JOIN patients p ON a.patient_id = p.id
-    WHERE a.appointment_date >= NOW() - INTERVAL '6 months'
+    WHERE a.appointment_date >= NOW() - INTERVAL 6 MONTH
     GROUP BY sort_key, month
     ORDER BY sort_key ASC
 ");
@@ -376,13 +372,12 @@ $pb_returning   = json_encode(array_column($patient_breakdown, 'returning_count'
             <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
                 <?php
                 $tabs = [
-                    '7days'  => 'Last 7 Days',
-                    '30days' => 'Last 30 Days',
-                    'month'  => 'This Month',
-                    'year'   => 'This Year',
+                    '7days' => 'Last 7 Days',
+                    'month' => 'This Month',
+                    'year'  => 'This Year',
                 ];
                 foreach ($tabs as $key => $label):
-                    $active = ($range === $key);
+                    $active = ($range === $key) || ($range === '30days' && $key === 'month');
                     $href = '?range=' . $key . ($key === 'month' ? '&month=' . $selected_month : '');
                     $style = $active
                         ? 'padding:6px 14px;border-radius:20px;font-size:0.78rem;font-weight:700;background:#2563eb;color:#fff;border:none;cursor:pointer;text-decoration:none;'
@@ -390,13 +385,31 @@ $pb_returning   = json_encode(array_column($patient_breakdown, 'returning_count'
                 ?>
                 <a href="<?php echo $href; ?>" style="<?php echo $style; ?>"><?php echo $label; ?></a>
                 <?php endforeach; ?>
-                <?php if ($range === 'month'): ?>
+                <?php if ($range === 'month' || $range === '30days' || $range === 'year'): ?>
                 <span style="width:1px;height:20px;background:var(--gray-200);margin:0 4px;"></span>
-                <a href="?range=month&month=<?php echo $prev_month; ?>" class="btn btn-sm btn-outline-secondary" title="Previous month" style="padding:4px 8px;">
+                <?php
+                    if ($range === 'year') {
+                        $cur_year   = (int)date('Y');
+                        $prev_year  = $cur_year - 1;
+                        $next_year  = $cur_year + 1;
+                        $year_future = $next_year > $cur_year;
+                        $prev_href = '?range=year&yr=' . $prev_year;
+                        $next_href = '?range=year&yr=' . $next_year;
+                        $prev_title = 'Previous year';
+                        $next_title = 'Next year';
+                    } else {
+                        $prev_href  = '?range=month&month=' . $prev_month;
+                        $next_href  = '?range=month&month=' . $next_month;
+                        $prev_title = 'Previous month';
+                        $next_title = 'Next month';
+                        $year_future = false;
+                    }
+                ?>
+                <a href="<?php echo $prev_href; ?>" class="btn btn-sm btn-outline-secondary" title="<?php echo $prev_title; ?>" style="padding:4px 8px;">
                     <i class="bi bi-chevron-left"></i>
                 </a>
-                <?php if (!$is_future): ?>
-                <a href="?range=month&month=<?php echo $next_month; ?>" class="btn btn-sm btn-outline-secondary" title="Next month" style="padding:4px 8px;">
+                <?php if (!$is_future && !$year_future): ?>
+                <a href="<?php echo $next_href; ?>" class="btn btn-sm btn-outline-secondary" title="<?php echo $next_title; ?>" style="padding:4px 8px;">
                     <i class="bi bi-chevron-right"></i>
                 </a>
                 <?php else: ?>
@@ -588,11 +601,18 @@ $pb_returning   = json_encode(array_column($patient_breakdown, 'returning_count'
         </div><!-- /row 3 -->
 
     </div>
-</div>
 
-<?php include '../../includes/footer.php'; ?>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
+// Destroy any existing Chart instances on this canvas (PJAX re-navigation fix)
+function safeChart(id, config) {
+    var el = document.getElementById(id);
+    if (!el) return null;
+    var existing = Chart.getChart(el);
+    if (existing) existing.destroy();
+    return new Chart(el, config);
+}
+
 var isDark     = document.documentElement.getAttribute('data-bs-theme') === 'dark'
               || document.documentElement.getAttribute('data-theme') === 'dark';
 var gridColor  = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)';
@@ -650,7 +670,7 @@ function noDataPlugin(msg) {
         return '₱'+v;
     }
 
-    new Chart(document.getElementById('revenueChart'), {
+    safeChart('revenueChart', {
         type: 'line',
         plugins: [
             noDataPlugin('No revenue recorded yet'),
@@ -764,7 +784,7 @@ function noDataPlugin(msg) {
     var svcData   = <?php echo $svc_data   ?: '[]'; ?>;
     var palette   = ['#2563eb','#16a34a','#f59e0b','#0d9488','#6366f1','#dc2626'];
 
-    new Chart(document.getElementById('apptBreakdownChart'), {
+    safeChart('apptBreakdownChart', {
         type: 'doughnut',
         plugins: [noDataPlugin('No service data this month')],
         data: {
@@ -812,7 +832,7 @@ function noDataPlugin(msg) {
     var dValues = <?php echo $daily_values_json ?: '[]'; ?>.map(Number);
     var maxVal  = Math.max(...dValues, 1);
 
-    new Chart(document.getElementById('dailyApptChart'), {
+    safeChart('dailyApptChart', {
         type: 'bar',
         plugins: [noDataPlugin('No appointments in this period')],
         data: {
@@ -869,7 +889,7 @@ function noDataPlugin(msg) {
     var pbNew       = <?php echo $pb_new       ?: '[]'; ?>;
     var pbReturning = <?php echo $pb_returning ?: '[]'; ?>;
 
-    new Chart(document.getElementById('patientGrowthChart'), {
+    safeChart('patientGrowthChart', {
         type: 'bar',
         plugins: [noDataPlugin('No data yet')],
         data: {
@@ -912,5 +932,7 @@ function noDataPlugin(msg) {
     });
 })();
 </script>
+</div>
+<?php include '../../includes/footer.php'; ?>
 </body>
 </html>

@@ -135,6 +135,7 @@ document.addEventListener('DOMContentLoaded', function() {
         var el = e.target;
         while (el && el.tagName !== 'A') el = el.parentElement;
         if (!el) return;
+        if (el.closest('#sidebar')) return; // PJAX already shows its own progress bar for sidebar nav
         var href = el.getAttribute('href');
         if (!href || href.startsWith('#') || href.startsWith('javascript')
             || href.includes('logout') || href.includes('print/')

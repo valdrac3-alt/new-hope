@@ -29,9 +29,6 @@ $_bootstrap_icons_local = file_exists($_app_root . '/assets/css/bootstrap-icons.
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="DentalCare">
 
-<style>
-</style>
-
 <?php if ($_bootstrap_css_local): ?>
 <link rel="stylesheet" href="<?php echo BASE_URL; ?>assets/css/bootstrap.min.css">
 <?php else: ?>
@@ -44,10 +41,9 @@ $_bootstrap_icons_local = file_exists($_app_root . '/assets/css/bootstrap-icons.
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
 <?php endif; ?>
 
-<!-- Premium fonts -->
+<!-- Font preconnect hints (actual @import is in style.css — no double-load) -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<link href="https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://api.fontshare.com" crossorigin>
 <link rel="stylesheet" href="<?php echo BASE_URL; ?>assets/css/style.css">
 <link rel="stylesheet" href="<?php echo BASE_URL; ?>assets/css/accessibility.css">
 <script>

@@ -31,7 +31,7 @@
             window.toggleNotifPanel = function (e) {
                 origToggle && origToggle(e);
                 var panel = document.getElementById('notifPanel');
-                var isOpen = panel && panel.style.display !== 'none';
+                var isOpen = panel && panel.classList.contains('open');
                 bell.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
             };
         }

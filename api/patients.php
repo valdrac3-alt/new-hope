@@ -21,7 +21,7 @@ if ($action === 'get_appointments') {
 
     $stmt = $conn->prepare("
         SELECT a.id, a.appointment_code,
-               TO_CHAR(a.appointment_date, 'Month DD, YYYY') as appointment_date,
+               DATE_FORMAT(a.appointment_date, '%M %d, %Y') as appointment_date,
                s.service_name, s.price
         FROM appointments a
         LEFT JOIN services s ON a.service_id = s.id
@@ -36,7 +36,7 @@ if ($action === 'get_appointments') {
         exit();
     }
     $appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    $stmt->close();
+    unset($stmt);
 
     // Load tooth conditions for color coding
     $tooth_conditions = [];
@@ -55,7 +55,7 @@ if ($action === 'get_appointments') {
             }
         }
     }
-    $tc_stmt->close();
+    unset($tc_stmt);
 
     // Cast price to float — MySQLi returns DECIMAL columns as strings
     foreach ($appointments as &$appt) {

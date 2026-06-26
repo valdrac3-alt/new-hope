@@ -7,6 +7,10 @@ require_once '../../includes/auth.php';
 
 $page_title = 'Edit Patient';
 
+// Get current user info from session
+$current_user_id   = $_SESSION['user_id']   ?? null;
+$current_user_name = $_SESSION['user_name'] ?? 'System';
+
 $id = secure_int($_GET['id'] ?? 0);
 if (!$id) { header('Location: list.php'); exit(); }
 
@@ -92,7 +96,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $error = 'Failed to update. Please try again.';
         }
-        $stmt->close();
         } // end if($stmt)
     }
 }

@@ -15,6 +15,9 @@ if (!$id) { header('Location: list.php'); exit(); }
 $user = $conn->query("SELECT * FROM users WHERE id = $id LIMIT 1")->fetch(PDO::FETCH_ASSOC);
 if (!$user) { header('Location: list.php'); exit(); }
 
+$current_user_id = $_SESSION['user']['id'] ?? 0;
+$current_user_name = $_SESSION['user']['username'] ?? 'System';
+
 $error   = '';
 $success = '';
 
@@ -54,13 +57,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ? [$full_name, $email, $phone, $role, $hashed, $id]
             : [$full_name, $email, $phone, $role, $id];
         if ($stmt->execute($params)) {
-            log_action($conn, $current_user_id, $current_user_name, 'Edited User', 'users', $id, "Updated user: {$user['username']}");
+            log_action(
+                $conn,
+                $current_user_id ?? ($_SESSION['user']['id'] ?? 0),
+                $current_user_name ?? ($_SESSION['user']['username'] ?? 'System'),
+                'Edited User',
+                'users',
+                $id,
+                "Updated user: {$user['username']}"
+            );
             $success = 'User updated successfully.';
             $user = $conn->query("SELECT * FROM users WHERE id = $id LIMIT 1")->fetch(PDO::FETCH_ASSOC);
         } else {
             $error = 'Failed to update. Please try again.';
         }
-        $stmt->close();
+        $stmt = null;
     }
 }
 ?><!DOCTYPE html>
@@ -444,8 +455,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     </div><!-- end eu-wrap -->
     </div>
-</div>
-<?php include '../../includes/footer.php'; ?>
 <script>
 function togglePw(id, icon) {
     var i = document.getElementById(id), t = i.type === 'text';
@@ -494,53 +503,7 @@ function checkMatch() {
     mt.style.color = pw === cf ? 'var(--success)' : 'var(--danger)';
 }
 </script>
-</body>
-</html>
-<script>
-function togglePw(id, icon) {
-    var i = document.getElementById(id), t = i.type === 'text';
-    i.type = t ? 'password' : 'text';
-    icon.className = (t ? 'bi bi-eye' : 'bi bi-eye-slash');
-    icon.style.cssText = 'position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--gray-400);cursor:pointer;';
-}
-document.getElementById('togPw').onclick   = function(){ togglePw('pw', this); };
-document.getElementById('togConf').onclick = function(){ togglePw('pwConf', this); };
-
-function setRule(id, ok) {
-    var e = document.getElementById(id);
-    e.textContent = (ok ? '✅' : '⬜') + e.textContent.slice(2);
-    e.style.color = ok ? 'var(--success)' : 'var(--gray-500)';
-    e.style.fontWeight = ok ? '600' : '400';
-}
-function checkStrength(v) {
-    var rl  = v.length >= 8 && v.length <= 18;
-    var ru  = /[A-Z]/.test(v);
-    var rlw = /[a-z]/.test(v);
-    var rn  = /[0-9]/.test(v);
-    var rs  = /[^A-Za-z0-9]/.test(v);
-    setRule('rule_len',   rl);
-    setRule('rule_upper', ru);
-    setRule('rule_lower', rlw);
-    setRule('rule_num',   rn);
-    setRule('rule_spec',  rs);
-    var score = [rl, ru, rlw, rn, rs].filter(Boolean).length;
-    var fills = ['0%','20%','40%','60%','80%','100%'];
-    var cols  = ['','#ef4444','#f97316','#eab308','#84cc16','#22c55e'];
-    var labs  = ['','Weak','Fair','Moderate','Good','Strong ✓'];
-    document.getElementById('strengthFill').style.width      = fills[score];
-    document.getElementById('strengthFill').style.background = cols[score] || '';
-    document.getElementById('strengthText').textContent      = v.length ? labs[score] : '';
-    document.getElementById('strengthText').style.color      = cols[score] || '';
-    checkMatch();
-}
-function checkMatch() {
-    var pw = document.getElementById('pw').value;
-    var cf = document.getElementById('pwConf').value;
-    var mt = document.getElementById('matchText');
-    if (!cf) { mt.textContent = ''; return; }
-    mt.textContent = pw === cf ? '✓ Passwords match' : '✗ Do not match';
-    mt.style.color = pw === cf ? 'var(--success)' : 'var(--danger)';
-}
-</script>
+</div>
+<?php include '../../includes/footer.php'; ?>
 </body>
 </html>

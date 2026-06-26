@@ -6,6 +6,19 @@ require_once '../../includes/db.php';
 require_once '../../includes/auth.php';
 require_admin();
 
+if (!isset($current_user_name)) {
+    if (isset($current_user['full_name'])) {
+        $current_user_name = $current_user['full_name'];
+    } elseif (isset($current_user['username'])) {
+        $current_user_name = $current_user['username'];
+    } else {
+        $current_user_name = '';
+    }
+}
+if (!isset($current_user_id) && isset($current_user['id'])) {
+    $current_user_id = $current_user['id'];
+}
+
 $page_title = 'Add User';
 $error   = '';
 $success = '';
@@ -38,13 +51,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $check = $conn->prepare("SELECT id FROM users WHERE username = ? LIMIT 1");
         $check->execute([$username]);
         $exists = $check->fetch(PDO::FETCH_ASSOC);
-        $check->close();
+        $check = null;
 
         // Also check email uniqueness
         $email_check = $conn->prepare("SELECT id FROM users WHERE email = ? LIMIT 1");
         $email_check->execute([$email]);
         $email_exists = $email_check->fetch(PDO::FETCH_ASSOC);
-        $email_check->close();
+        $email_check = null;
 
         if ($exists) {
             $error = 'Username already exists. Choose another.';
@@ -60,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 $error = 'Failed to create user. Please try again.';
             }
-            $stmt->close();
+            $stmt = null;
         }
     }
 }
@@ -152,8 +165,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
         </div>
     </div>
-</div>
-<?php include '../../includes/footer.php'; ?>
 <script>
 function togglePw(id, icon) {
     var i = document.getElementById(id), t = i.type === 'text';
@@ -230,5 +241,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('pwConf').addEventListener('input', updateSubmitBtn);
 });
 </script>
+</div>
+<?php include '../../includes/footer.php'; ?>
 </body>
 </html>

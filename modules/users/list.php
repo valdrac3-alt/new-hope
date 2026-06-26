@@ -6,21 +6,28 @@ require_once '../../includes/db.php';
 require_once '../../includes/auth.php';
 require_admin();
 
+if (!isset($current_user_id)) {
+    $current_user_id = $_SESSION['user_id'] ?? $_SESSION['uid'] ?? $_SESSION['id'] ?? 0;
+}
+if (!isset($current_user_name)) {
+    $current_user_name = $_SESSION['full_name'] ?? $_SESSION['username'] ?? 'System';
+}
+
 $page_title = 'User Management';
 
 // Handle toggle active — fully prepared
-if (isset($_GET['toggle']) && isset($_GET['uid'])) {
-    $uid = secure_int($_GET['uid'] ?? 0);
+if (isset($_POST['toggle']) && isset($_POST['uid'])) {
+    validate_csrf();
+    $uid = secure_int($_POST['uid'] ?? 0);
     if ($uid > 0 && $uid !== $current_user_id) {
         $stmt = $conn->prepare("SELECT is_active FROM users WHERE id = ? LIMIT 1");
         $stmt->execute([$uid]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
-        $stmt->close();
+        $stmt = null;
         if ($user) {
-            $new_status = $user['is_active'] ? 'FALSE' : 'TRUE';
-            $stmt2 = $conn->prepare("UPDATE users SET is_active = CAST(? AS boolean) WHERE id = ?");
+            $new_status = $user['is_active'] ? 0 : 1;
+            $stmt2 = $conn->prepare("UPDATE users SET is_active = ? WHERE id = ?");
             $stmt2->execute([$new_status, $uid]);
-            $stmt2->close();
             $label = $new_status ? 'Activated User' : 'Deactivated User';
             log_action($conn, $current_user_id, $current_user_name, $label, 'users', $uid);
         }
@@ -87,11 +94,14 @@ $users = $conn->query("SELECT * FROM users ORDER BY role ASC, full_name ASC")->f
                             <td data-label="Actions">
                                 <a href="edit.php?id=<?php echo $u['id']; ?>" class="btn btn-sm btn-outline-secondary">Edit</a>
                                 <?php if ($u['id'] !== $current_user_id): ?>
-                                    <a href="list.php?toggle=1&uid=<?php echo $u['id']; ?>"
-                                       class="btn btn-sm btn-outline-<?php echo $u['is_active'] ? 'warning' : 'success'; ?>"
-                                       onclick="return confirm('<?php echo $u['is_active'] ? 'Deactivate' : 'Activate'; ?> this user?')">
-                                        <?php echo $u['is_active'] ? 'Deactivate' : 'Activate'; ?>
-                                    </a>
+                                    <form method="POST" style="display:inline;" onsubmit="return confirm('<?php echo $u['is_active'] ? 'Deactivate' : 'Activate'; ?> this user?')">
+                                        <?php echo csrf_field(); ?>
+                                        <input type="hidden" name="toggle" value="1">
+                                        <input type="hidden" name="uid" value="<?php echo $u['id']; ?>">
+                                        <button type="submit" class="btn btn-sm btn-outline-<?php echo $u['is_active'] ? 'warning' : 'success'; ?>">
+                                            <?php echo $u['is_active'] ? 'Deactivate' : 'Activate'; ?>
+                                        </button>
+                                    </form>
                                 <?php endif; ?>
                             </td>
                         </tr>

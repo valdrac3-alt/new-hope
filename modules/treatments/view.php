@@ -30,7 +30,6 @@ $stmt = $conn->prepare("
 ");
 $stmt->execute([$id]);
 $r = $stmt->fetch(PDO::FETCH_ASSOC);
-$stmt->close();
 
 if (!$r) { header('Location: list.php'); exit(); }
 
@@ -46,7 +45,7 @@ $other_stmt = $conn->prepare("
 ");
 $other_stmt->execute([$r['pid'], $id]);
 $other_records = $other_stmt->fetchAll(PDO::FETCH_ASSOC);
-$other_stmt->close();
+$other_stmt = null;
 
 // Tooth status label + color map (uses CSS variables — dark mode safe)
 $status_map = [
@@ -224,8 +223,6 @@ $tsc = $status_map[$ts] ?? $status_map['normal'];
                             $crown_stroke = $sel ? $ti['border'] : '#94A3B8';
                             $root_fill    = $sel ? $ti['bg']     : '#CBD5E1';
                             $root_stroke  = $sel ? $ti['border'] : '#94A3B8';
-                            $num_fill     = $sel ? $ti['color']  : '#64748B';
-                            $s = "<style>.vt-crown-{$type}{$jaw}{fill:{$crown_fill};stroke:{$crown_stroke};stroke-width:0.8;}.vt-root-{$type}{$jaw}{fill:{$root_fill};stroke:{$root_stroke};stroke-width:0.8;}</style>";
                             // Use inline styles for simplicity per tooth
                             $c = "fill:{$crown_fill};stroke:{$crown_stroke};stroke-width:0.8;";
                             $ro = "fill:{$root_fill};stroke:{$root_stroke};stroke-width:0.8;";
@@ -253,7 +250,6 @@ $tsc = $status_map[$ts] ?? $status_map['normal'];
                         $vLower   = [48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38];
                         $vPrimU   = ['55','54','53','52','51','61','62','63','64','65'];
                         $vPrimL   = ['85','84','83','82','81','71','72','73','74','75'];
-                        $numFill  = '#64748B';
                         ?>
                         <div class="tooth-chart-scroll" style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:10px;padding:14px 10px;overflow-x:auto;-webkit-overflow-scrolling:touch;">
                             <!-- SVG Odontogram — same layout as add.php -->

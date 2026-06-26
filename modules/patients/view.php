@@ -551,8 +551,6 @@ if (!empty($patient['date_of_birth'])) {
         </div>
 
     </div>
-</div>
-<?php include '../../includes/footer.php'; ?>
 <script>
 function toggleRec(btn, id) {
     var body = document.getElementById(id);
@@ -589,5 +587,7 @@ window.addEventListener('resize', function() {
     }
 });
 </script>
+</div>
+<?php include '../../includes/footer.php'; ?>
 </body>
 </html>

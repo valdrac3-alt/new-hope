@@ -5,6 +5,9 @@ require_once '../../includes/config.php';
 require_once '../../includes/db.php';
 require_once '../../includes/auth.php';
 
+$current_user_id = $current_user_id ?? null;
+$current_user_name = $current_user_name ?? 'System';
+
 $page_title = 'Patient Records';
 
 // ── Soft-delete (archive) ────────────────────────────────────────────────────
@@ -15,10 +18,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_id'])) {
         $nr = $conn->prepare("SELECT CONCAT(first_name,' ',last_name) as n FROM patients WHERE id = ? LIMIT 1");
         $nr->execute([$del_id]);
         $pname = $nr->fetch(PDO::FETCH_ASSOC)['n'] ?? 'Unknown';
-        $nr->close();
+        $nr->closeCursor();
         $stmt = $conn->prepare("UPDATE patients SET is_active = FALSE WHERE id = ?");
         $stmt->execute([$del_id]);
-        $stmt->close();
+        $stmt->closeCursor();
         log_action($conn, $current_user_id, $current_user_name, 'Archived Patient', 'patients', $del_id, "Soft-deleted (archived): $pname — all records preserved.");
     }
     header('Location: list.php');
@@ -52,7 +55,7 @@ if ($blood_f) {
 $count_stmt = $conn->prepare("SELECT COUNT(*) as c FROM patients p $base_where");
 $count_stmt->execute($params);
 $total_count = (int)$count_stmt->fetch(PDO::FETCH_ASSOC)['c'];
-$count_stmt->close();
+$count_stmt->closeCursor();
 
 $total_pages = max(1, ceil($total_count / $per_page));
 $page        = min($page, $total_pages);
@@ -76,7 +79,7 @@ $list_stmt = $conn->prepare("
 ");
 $list_stmt->execute($params);
 $patients = $list_stmt->fetchAll(PDO::FETCH_ASSOC);
-$list_stmt->close();
+$list_stmt->closeCursor();
 
 // Stats bar (always across all active patients, not filtered)
 $stats_row = $conn->query("
@@ -84,7 +87,7 @@ $stats_row = $conn->query("
         COUNT(*) as total,
         SUM(CASE WHEN gender = 'male' THEN 1 ELSE 0 END) as males,
         SUM(CASE WHEN gender = 'female' THEN 1 ELSE 0 END) as females,
-        SUM(CASE WHEN created_at >= DATE_TRUNC('month', NOW()) THEN 1 ELSE 0 END) as new_this_month,
+        SUM(CASE WHEN created_at >= DATE_FORMAT(NOW(), '%Y-%m-01') THEN 1 ELSE 0 END) as new_this_month,
         SUM(CASE WHEN is_incomplete = TRUE THEN 1 ELSE 0 END) as incomplete_count
     FROM patients WHERE is_active = TRUE
 ")->fetch(PDO::FETCH_ASSOC);
@@ -116,6 +119,8 @@ $archived_count = (int)$conn->query("SELECT COUNT(*) as c FROM patients WHERE is
     display: flex;
     align-items: center;
     gap: 12px;
+    cursor: default;
+    user-select: none;
 }
 .stat-icon {
     width: 38px; height: 38px;
@@ -358,7 +363,6 @@ $archived_count = (int)$conn->query("SELECT COUNT(*) as c FROM patients WHERE is
         <?php endif; ?>
 
     </div>
-</div>
 
 <!-- Archive Confirmation Modal -->
 <div class="modal fade" id="archiveModal" tabindex="-1">
@@ -395,15 +399,16 @@ $archived_count = (int)$conn->query("SELECT COUNT(*) as c FROM patients WHERE is
     </div>
 </div>
 
-<?php include '../../includes/footer.php'; ?>
 
 <script>
-var archiveModal = new bootstrap.Modal(document.getElementById('archiveModal'));
+function getModal(id){var el=document.getElementById(id);return el?bootstrap.Modal.getOrCreateInstance(el):null;}
 function confirmArchive(id, name) {
     document.getElementById('archivePatientId').value = id;
     document.getElementById('archivePatientName').textContent = name;
-    archiveModal.show();
+    getModal('archiveModal').show();
 }
 </script>
+</div>
+<?php include '../../includes/footer.php'; ?>
 </body>
 </html>

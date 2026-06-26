@@ -586,9 +586,7 @@ $all_docs_dw = $conn->query("SELECT id, full_name, specialization, schedule_days
 $wopen_h  = intval(substr($sched['open_time']  ?? '08:00', 0, 2));
 $wclose_h = intval(substr($sched['close_time'] ?? '18:00', 0, 2));
 if ($wclose_h <= $wopen_h) $wclose_h = $wopen_h + 10;
-$w_total_hours = $wclose_h - $wopen_h;
 $w_now_h = intval(date('G')); $w_now_m = intval(date('i'));
-$w_now_top = (($w_now_h - $wopen_h) * 60 + $w_now_m);
 ?>
 <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
     <a href="calendar.php?view=week&date=<?php echo $prev_week;?>" class="btn btn-sm btn-outline-secondary"><i class="bi bi-chevron-left"></i></a>
@@ -766,7 +764,6 @@ $show_now=($day_date===$today&&$now_h>=$open_h&&$now_h<$close_h);
 </div>
 <?php endif;?>
 </div>
-</div>
 
 <!-- Day detail modal (month view) -->
 <div class="modal fade" id="dayModal" tabindex="-1">
@@ -778,7 +775,7 @@ $show_now=($day_date===$today&&$now_h>=$open_h&&$now_h<$close_h);
             </div>
             <div class="modal-body" id="dayModalBody" style="padding:18px 22px;"></div>
             <div class="modal-footer" style="border-top:1px solid var(--gray-200);padding:12px 22px;">
-                <button id="dayModalAddBtn" type="button" class="btn btn-sm btn-success" onclick="dayModal.hide();setTimeout(()=>openWalkinDrawer(_dayModalDate),200)"><i class="bi bi-plus-circle"></i> Add Appointment</button>
+                <button id="dayModalAddBtn" type="button" class="btn btn-sm btn-success" onclick="getModal('dayModal').hide();setTimeout(()=>openWalkinDrawer(_dayModalDate),200)"><i class="bi bi-plus-circle"></i> Add Appointment</button>
                 <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
@@ -945,8 +942,9 @@ $show_now=($day_date===$today&&$now_h>=$open_h&&$now_h<$close_h);
     <div style="display:flex;align-items:flex-start;gap:12px;"><span style="font-size:1.4rem;">✅</span><div><div id="walkinToastTitle" style="font-weight:700;color:#166534;margin-bottom:3px;">Done!</div><div id="walkinToastMsg" style="font-size:0.82rem;color:#374151;"></div></div><button onclick="document.getElementById('walkinToast').style.display='none'" style="background:none;border:none;color:#9ca3af;cursor:pointer;margin-left:auto;font-size:1rem;">✕</button></div>
 </div>
 
-<?php include '../../includes/footer.php'; ?>
 <script>
+function getModal(id){var el=document.getElementById(id);return el?bootstrap.Modal.getOrCreateInstance(el):null;}
+function getCsrfToken(){var el=document.querySelector('input[name="_csrf"]');return el?el.value:'';}
 var _today='<?php echo $today;?>';
 var _tomorrow='<?php echo date('Y-m-d', strtotime('+1 day'));?>';
 var _phpBaseUrl='<?php echo BASE_URL;?>';
@@ -968,9 +966,7 @@ var doctorColors=<?php echo json_encode($doctor_color_map);?>;
 var defaultC=<?php echo json_encode($default_color);?>;
 var statusDot=<?php echo json_encode($status_dot);?>;
 var statusLabels=<?php echo json_encode($status_labels);?>;
-<?php if($view==='month'): ?>var allAppts=<?php echo json_encode($appts_by_date);?>;<?php endif;?>
-var dayModal=new bootstrap.Modal(document.getElementById('dayModal'));
-var apptModal=new bootstrap.Modal(document.getElementById('apptModal'));
+<?php if($view==='month'): ?>var allAppts=<?php echo json_encode($appts_by_date);?>;<?php else: ?>var allAppts={};<?php endif;?>
 var _curAppt=null;
 function ucwords(s){return s.toLowerCase().replace(/(^|\s)\S/g,l=>l.toUpperCase());}
 function goToDay(d){ openWalkinDrawer(d); }
@@ -1012,12 +1008,12 @@ function viewDay(date){
             body+='</div>';
             body+='<span style="display:flex;align-items:center;gap:4px;font-size:0.72rem;font-weight:600;color:'+dot+';">';
             body+='<span style="width:7px;height:7px;border-radius:50%;background:'+dot+';display:inline-block;"></span>'+(statusLabels[a.status]||a.status)+'</span>';
-            body+='<button onclick="dayModal.hide();setTimeout(()=>openApptModal('+JSON.stringify(a)+'),300)" class="btn btn-sm btn-outline-primary" style="flex-shrink:0;"><i class="bi bi-info-circle"></i></button>';
+            body+='<button onclick="getModal(\'dayModal\').hide();setTimeout(()=>openApptModal('+JSON.stringify(a)+'),300)" class="btn btn-sm btn-outline-primary" style="flex-shrink:0;"><i class="bi bi-info-circle"></i></button>';
             body+='</div>';
         });
     }
     document.getElementById('dayModalBody').innerHTML=body;
-    dayModal.show();
+    getModal('dayModal').show();
 }
 function openApptModal(a){
     _curAppt=a;
@@ -1053,34 +1049,32 @@ function openApptModal(a){
     if(a.status==='confirmed'){ci.href=_baseUrl+'modules/treatments/add.php?patient_id='+a.patient_id+'&appointment_id='+a.id;ci.style.display='inline-flex';rb.style.display='none';}
     else if(a.status==='completed'){rb.href=_baseUrl+'modules/patients/view.php?id='+a.patient_id;rb.style.display='inline-flex';ci.style.display='none';}
     else{ci.style.display='none';rb.style.display='none';}
-    apptModal.show();
+    getModal('apptModal').show();
 }
 function updateApptStatus(id,status){
-    fetch(_baseUrl+'api/appointments.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'update_status',id:id,status:status})})
+    fetch(_baseUrl+'api/appointments.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'update_status',id:id,status:status,_csrf:getCsrfToken()})})
     .then(r=>r.json()).then(d=>{
         if(d.status==='success'){
-            apptModal.hide();location.reload();
+            getModal('apptModal').hide();location.reload();
         }else if(d.status==='no_record_warning'){
-            apptModal.hide();
+            getModal('apptModal').hide();
             _pendingCompleteId=d.appt_id;
-            noRecordModal.show();
+            getModal('noRecordModal').show();
         }else{
             alert('Error: '+(d.message||'Update failed'));
         }
     });
 }
-var _noRecordModalEl=document.getElementById('noRecordModal');
-var noRecordModal=_noRecordModalEl?new bootstrap.Modal(_noRecordModalEl):null;
 var _pendingCompleteId=null;
-function goToRecordTreatment(){if(noRecordModal)noRecordModal.hide();window.location.href=_baseUrl+'modules/treatments/add.php?appointment_id='+_pendingCompleteId;}
+function goToRecordTreatment(){getModal('noRecordModal')?.hide();window.location.href=_baseUrl+'modules/treatments/add.php?appointment_id='+_pendingCompleteId;}
 function completeAnyway(){
-    if(noRecordModal)noRecordModal.hide();
-    fetch(_baseUrl+'api/appointments.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'update_status',id:_pendingCompleteId,status:'completed',force:true})})
+    getModal('noRecordModal')?.hide();
+    fetch(_baseUrl+'api/appointments.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'update_status',id:_pendingCompleteId,status:'completed',force:true,_csrf:getCsrfToken()})})
     .then(r=>r.json()).then(d=>{if(d.status==='success')location.reload();else alert('Error: '+(d.message||'Update failed'));});
 }
 function scheduleFollowUp(){
     if(!_curAppt)return;
-    apptModal.hide();
+    getModal('apptModal').hide();
     setTimeout(()=>{
         var fd=new Date();fd.setDate(fd.getDate()+7);
         var ds=fd.getFullYear()+'-'+String(fd.getMonth()+1).padStart(2,'0')+'-'+String(fd.getDate()).padStart(2,'0');
@@ -1224,7 +1218,7 @@ function submitWalkin(){
     hideDrawerAlert();
     fetch(_baseUrl+'modules/walkin/add.php',{method:'POST',body:new FormData(form)})
     .then(r=>r.json()).then(res=>{
-        btn.disabled=false;btn.innerHTML='<i class="bi bi-person-check-fill"></i> <span id="walkinBtnLabel">Book Appointment</span>';
+        btn.disabled=false;btn.innerHTML='<i class="bi bi-person-check-fill"></i> <span>Book Appointment</span>';
         if(res.status==='success'){
             closeWalkinDrawer();
             var appt=res.appt||{};
@@ -1235,8 +1229,10 @@ function submitWalkin(){
             var toast=document.getElementById('walkinToast');toast.style.display='block';setTimeout(()=>{toast.style.display='none';},6000);
             setTimeout(()=>location.reload(),1000);
         }else{showDrawerAlert('danger',res.message||'Something went wrong.');}
-    }).catch(()=>{btn.disabled=false;btn.innerHTML='<i class="bi bi-person-check-fill"></i> <span id="walkinBtnLabel">Book Appointment</span>';showDrawerAlert('danger','Network error. Please try again.');});
+    }).catch(()=>{btn.disabled=false;btn.innerHTML='<i class="bi bi-person-check-fill"></i> <span>Book Appointment</span>';showDrawerAlert('danger','Network error. Please try again.');});
 }
 </script>
+</div>
+<?php include '../../includes/footer.php'; ?>
 </body>
 </html>

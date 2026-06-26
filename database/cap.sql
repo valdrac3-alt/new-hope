@@ -42,6 +42,8 @@ CREATE TABLE `users` (
   `is_active`     TINYINT(1)    DEFAULT 1,
   `reset_token`   VARCHAR(64)   DEFAULT NULL,
   `reset_expires` DATETIME      DEFAULT NULL,
+  `otp_code`      VARCHAR(6)    DEFAULT NULL,
+  `otp_expires`   DATETIME      DEFAULT NULL,
   `created_at`    DATETIME      DEFAULT CURRENT_TIMESTAMP,
   `updated_at`    DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -74,6 +76,7 @@ CREATE TABLE `patients` (
   `medical_notes`           TEXT          DEFAULT NULL,
   `illness_history`         TEXT          DEFAULT NULL,
   `is_active`               TINYINT(1)    DEFAULT 1,
+  `is_incomplete`           TINYINT(1)    DEFAULT 0,
   `registered_by`           INT           DEFAULT NULL,
   `created_at`              DATETIME      DEFAULT CURRENT_TIMESTAMP,
   `updated_at`              DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -122,6 +125,8 @@ CREATE TABLE `doctors` (
   `start_time`     TIME          DEFAULT '08:00:00',
   `end_time`       TIME          DEFAULT '17:00:00',
   `is_active`      TINYINT(1)    DEFAULT 1,
+  `leave_start`    DATE          DEFAULT NULL,
+  `leave_end`      DATE          DEFAULT NULL,
   `created_at`     DATETIME      DEFAULT CURRENT_TIMESTAMP,
   `updated_at`     DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -177,7 +182,7 @@ CREATE TABLE `appointments` (
   `doctor_id`        INT          DEFAULT NULL,
   `appointment_date` DATE         NOT NULL,
   `appointment_time` TIME         NOT NULL,
-  `type`             ENUM('walk-in') DEFAULT 'walk-in',
+  `type`             ENUM('walk-in','scheduled') DEFAULT 'walk-in',
   `status`           ENUM('pending','confirmed','completed','cancelled','no-show') DEFAULT 'pending',
   `notes`            TEXT         DEFAULT NULL,
   `staff_notes`      TEXT         DEFAULT NULL,
@@ -201,7 +206,7 @@ CREATE TABLE `dental_records` (
   `patient_id`             INT  NOT NULL,
   `appointment_id`         INT  DEFAULT NULL,
   `service_id`             INT  DEFAULT NULL,
-  `tooth_number`           VARCHAR(20) DEFAULT NULL,
+  `tooth_number`           TEXT DEFAULT NULL,
   `tooth_status`           ENUM('normal','caries','filling','extraction','missing','crown','rootcanal','bridge','implant','denture') DEFAULT 'normal',
   `chief_complaint`        TEXT DEFAULT NULL,
   `diagnosis`              TEXT DEFAULT NULL,

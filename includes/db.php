@@ -1,7 +1,8 @@
 <?php
 // db.php — Database connection and shared helper functions.
 // Credentials are loaded from the .env file (never hardcoded here).
-// Uses PDO with PostgreSQL (Supabase) instead of mysqli.
+// Uses PDO with MySQL (modern replacement for the old mysqli calls —
+// same prepared-statement safety, consistent ? placeholders everywhere).
 
 // --- Load .env file -----------------------------------------------------------
 function load_env($path) {
@@ -16,21 +17,20 @@ function load_env($path) {
 }
 load_env(__DIR__ . '/../.env');
 
-// --- Connect to database (PDO + PostgreSQL / Supabase) ------------------------
+// --- Connect to database (PDO + MySQL) -----------------------------------------
 try {
     $db_host = getenv('DB_HOST') ?: ($_ENV['DB_HOST'] ?? 'localhost');
-    $db_port = getenv('DB_PORT') ?: ($_ENV['DB_PORT'] ?? '5432');
-    $db_name = getenv('DB_NAME') ?: ($_ENV['DB_NAME'] ?? 'postgres');
-    $db_user = getenv('DB_USER') ?: ($_ENV['DB_USER'] ?? 'postgres');
+    $db_port = getenv('DB_PORT') ?: ($_ENV['DB_PORT'] ?? '3306');
+    $db_name = getenv('DB_NAME') ?: ($_ENV['DB_NAME'] ?? 'cap');
+    $db_user = getenv('DB_USER') ?: ($_ENV['DB_USER'] ?? 'root');
     $db_pass = getenv('DB_PASS') ?: ($_ENV['DB_PASS'] ?? '');
 
-    $dsn = "pgsql:host={$db_host};port={$db_port};dbname={$db_name};sslmode=prefer";
+    $dsn = "mysql:host={$db_host};port={$db_port};dbname={$db_name};charset=utf8mb4";
 
     $conn = new PDO($dsn, $db_user, $db_pass, [
         PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_EMULATE_PREPARES   => false,
-    
     ]);
 
 } catch (PDOException $e) {
@@ -41,6 +41,9 @@ try {
         http_response_code(503);
         echo json_encode(['status' => 'error', 'message' => 'Database connection failed.']);
     } else {
+        $db_host_safe = $_ENV['DB_HOST'] ?? 'localhost';
+        $db_name_safe = $_ENV['DB_NAME'] ?? 'cap';
+        $db_user_safe = $_ENV['DB_USER'] ?? 'root';
         http_response_code(503);
         echo '<!DOCTYPE html><html><head><meta charset="UTF-8">
         <title>Database Error</title>
@@ -54,17 +57,19 @@ try {
             .step strong{display:block;margin-bottom:4px;color:#0f172a;}
         </style></head><body><div class="box">
         <h2>&#9888; Cannot connect to database</h2>
-        <p>The system cannot reach PostgreSQL (Supabase). Check your environment variables:</p>
-        <div class="step"><strong>Required .env variables for Supabase</strong>
-            <code>DB_HOST=db.xxxx.supabase.co</code><br>
-            <code>DB_PORT=5432</code><br>
-            <code>DB_USER=postgres</code><br>
-            <code>DB_PASS=your-supabase-password</code><br>
-            <code>DB_NAME=postgres</code>
-        </div>
-        <div class="step"><strong>Where to find these values</strong>
-            Go to your Supabase project → Settings → Database → Connection string (URI)
-        </div>
+        <p>The system cannot reach MySQL. This is almost always one of these three things:</p>
+        <div class="step"><strong>1. MySQL is not running</strong>
+            Open Laragon (or XAMPP) and click <strong>Start</strong> next to MySQL.</div>
+        <div class="step"><strong>2. Wrong credentials in .env</strong>
+            Check your <code>.env</code> file — make sure these match your local setup:<br><br>
+            <code>DB_HOST=localhost</code><br>
+            <code>DB_PORT=3306</code><br>
+            <code>DB_USER=root</code><br>
+            <code>DB_PASS=</code> &nbsp;(blank by default in Laragon/XAMPP)<br>
+            <code>DB_NAME=cap</code></div>
+        <div class="step"><strong>3. Database not imported yet</strong>
+            Open <strong>phpMyAdmin</strong> or <strong>HeidiSQL</strong> → create database <code>cap</code> → import <code>database/cap.sql</code></div>
+        ' . (defined('APP_DEBUG') && APP_DEBUG ? '<p style="margin-top:16px;font-size:0.8em;color:#94a3b8;">Attempted: <code>' . htmlspecialchars($db_user_safe) . '@' . htmlspecialchars($db_host_safe) . '/' . htmlspecialchars($db_name_safe) . '</code></p>' : '') . '
         </div></body></html>';
     }
     exit();
@@ -107,11 +112,6 @@ function get_client_ip(): string {
 function secure_int($value) {
     $v = intval($value);
     return $v > 0 ? $v : 0;
-}
-
-// Escape a string for use in LIKE queries (kept for backward compat)
-function secure_str($conn, $value) {
-    return trim($value);
 }
 
 // Safely echo user-supplied data in HTML
@@ -279,14 +279,9 @@ function send_otp_email($email, $otp, $name = '') {
     return true;
 }
 
-// Generate a padded code like PAT-0001 or APT-0042.
-function make_code(string $prefix, int $id): string {
-    return $prefix . '-' . str_pad($id, 4, '0', STR_PAD_LEFT);
-}
-
 // Legacy wrapper — kept for backward compatibility.
 function generate_code($conn, $table, $prefix) {
-    $res = $conn->query("SELECT MAX(id) as max_id FROM \"$table\"");
+    $res = $conn->query("SELECT MAX(id) as max_id FROM `$table`");
     $row = $res ? $res->fetch(PDO::FETCH_ASSOC) : null;
     $next = ($row['max_id'] ?? 0) + 1;
     return $prefix . '-' . str_pad($next, 4, '0', STR_PAD_LEFT);
@@ -374,28 +369,6 @@ function get_api_token_user($conn): ?array {
     }
 
     return $user ?: null;
-}
-
-function require_api_auth($conn): array {
-    if (isset($_SESSION['user_id'])) {
-        return [
-            'user_id'   => $_SESSION['user_id'],
-            'full_name' => $_SESSION['full_name'],
-            'role'      => $_SESSION['role'],
-        ];
-    }
-    $user = get_api_token_user($conn);
-    if ($user) {
-        return [
-            'user_id'   => $user['user_id'],
-            'full_name' => $user['full_name'],
-            'role'      => $user['role'],
-        ];
-    }
-    http_response_code(401);
-    header('Content-Type: application/json');
-    echo json_encode(['status' => 'error', 'message' => 'Authentication required.']);
-    exit();
 }
 
 // ============================================================

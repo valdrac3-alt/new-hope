@@ -1,10 +1,12 @@
 <?php
 // API: get available time slots for a date, update appointment status, delete appointment.
-// Migrated to PDO / PostgreSQL (Supabase)
+// Uses PDO with MySQL
 
 require_once '../includes/config.php';
 require_once '../includes/db.php';
 require_once '../includes/auth.php';
+
+$current_user_name = $_SESSION['user_name'] ?? ($_SESSION['name'] ?? ($_SESSION['full_name'] ?? 'System'));
 
 header('Content-Type: application/json');
 
@@ -320,14 +322,13 @@ if ($action === 'update_status') {
     }
 
     if ($status === 'confirmed') {
+        // Past-date appointments can still be confirmed by staff (e.g. confirming
+        // a pending appointment from yesterday). Only warn, never hard-block.
         $past_chk = $conn->prepare("SELECT appointment_date FROM appointments WHERE id = ? LIMIT 1");
         $past_chk->execute([$id]);
         $past_row = $past_chk->fetch(PDO::FETCH_ASSOC);
-        if ($past_row && strtotime($past_row['appointment_date']) < strtotime('today')) {
-            http_response_code(422);
-            echo json_encode(['status' => 'error', 'message' => 'Cannot confirm an appointment that has already passed.']);
-            exit();
-        }
+        $past_chk->closeCursor();
+        // No hard block — staff may need to confirm past appointments
     }
 
     if ($status === 'completed' && empty($body['force'])) {

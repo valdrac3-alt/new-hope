@@ -25,7 +25,7 @@ if ($pre_appointment_id) {
     $pa_stmt = $conn->prepare("SELECT a.*, s.id as service_id, s.service_name FROM appointments a LEFT JOIN services s ON a.service_id = s.id WHERE a.id = ? LIMIT 1");
     $pa_stmt->execute([$pre_appointment_id]);
     $pre_appointment = $pa_stmt->fetch(PDO::FETCH_ASSOC);
-    $pa_stmt->close();
+    $pa_stmt->closeCursor();
     if ($pre_appointment) $pre_service_id = intval($pre_appointment['service_id'] ?? 0);
 }
 
@@ -34,7 +34,7 @@ if ($pre_patient_id) {
     $pp_stmt = $conn->prepare("SELECT first_name, last_name, allergies, medical_notes, illness_history, blood_type, phone FROM patients WHERE id = ? LIMIT 1");
     $pp_stmt->execute([$pre_patient_id]);
     $pre_patient = $pp_stmt->fetch(PDO::FETCH_ASSOC);
-    $pp_stmt->close();
+    $pp_stmt->closeCursor();
 }
 
 $past_treatments = [];
@@ -42,7 +42,7 @@ if ($pre_patient_id) {
     $pt_stmt = $conn->prepare("SELECT dr.visit_date, dr.treatment_done, dr.diagnosis, dr.tooth_number, dr.tooth_status, dr.medications_prescribed, dr.next_visit_notes, s.service_name FROM dental_records dr LEFT JOIN services s ON dr.service_id = s.id WHERE dr.patient_id = ? ORDER BY dr.visit_date DESC, dr.id DESC LIMIT 5");
     $pt_stmt->execute([$pre_patient_id]);
     $past_treatments = $pt_stmt->fetchAll(PDO::FETCH_ASSOC);
-    $pt_stmt->close();
+    $pt_stmt->closeCursor();
 }
 
 $outstanding = 0;
@@ -50,7 +50,7 @@ if ($pre_patient_id) {
     $bal_stmt = $conn->prepare("SELECT COALESCE(SUM(amount_due - amount_paid),0) as bal FROM bills WHERE patient_id = ? AND status != 'paid'");
     $bal_stmt->execute([$pre_patient_id]);
     $outstanding = floatval($bal_stmt->fetch(PDO::FETCH_ASSOC)['bal']);
-    $bal_stmt->close();
+    $bal_stmt->closeCursor();
 }
 
 $patient_appointments = [];
@@ -97,11 +97,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $visit_date,
             ])) {
                 $new_id = $conn->lastInsertId();
-                $stmt->close();
+                $stmt->closeCursor();
                 if ($appointment_id) {
                     $upd = $conn->prepare("UPDATE appointments SET status = 'completed' WHERE id = ?");
                     $upd->execute([$appointment_id]);
-                    $upd->close();
+                    $upd->closeCursor();
                 }
                 log_action($conn, $current_user_id, $current_user_name, 'Added Dental Record', 'treatments', $new_id, "Patient ID: $patient_id | Visit: $visit_date | Status: $tooth_status");
                 if ($patient_id) {
@@ -113,7 +113,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 $success = 'Dental record saved successfully.';
             } else {
-                $stmt->close();
+                $stmt->closeCursor();
                 $error = 'Failed to save dental record. Please try again.';
             }
         }
@@ -692,8 +692,6 @@ $primaryTeeth = ['55','54','53','52','51','61','62','63','64','65','85','84','83
         </style>
         <?php endif; ?>
     </div>
-</div>
-<?php include '../../includes/footer.php'; ?>
 <script>
 // ── Patient change → reload appointments + pre-color tooth chart ──────────
 document.getElementById('patient_select').addEventListener('change', function() {
@@ -956,5 +954,7 @@ function updateConditionPreview() {
 document.getElementById('tooth_status_select').addEventListener('change', updateConditionPreview);
 updateConditionPreview();
 </script>
+</div>
+<?php include '../../includes/footer.php'; ?>
 </body>
 </html>

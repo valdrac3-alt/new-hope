@@ -1,17 +1,17 @@
 # Dental Clinic Management And Recording System
-A full-featured, web-based clinic management system built with **PHP 8.4**, **PostgreSQL (Supabase)**, and **Bootstrap 5**. Designed for dental clinics to manage patients, appointments, billing, dental records, and staff — all from a single, role-protected admin panel.
+A full-featured, web-based clinic management system built with **PHP 8.4**, **MySQL**, and **Bootstrap 5**. Designed for dental clinics to manage patients, appointments, billing, dental records, and staff — all from a single, role-protected admin panel.
 
 ---
 
 ## Features
 
 ### Authentication & Security
-- Secure login with **math CAPTCHA** (human verification) and optional **hCaptcha** support
+- Secure login with brute-force lockout (5 failed attempts → 5-minute cooldown), backed by both a session counter and an IP-based rate limiter
 - **Honeypot field** to silently catch and block bots
-- **Brute-force protection** — account lock after 5 failed attempts (5-minute cooldown)
 - **OTP-based password reset** delivered via SMS (Semaphore) and Email (Resend)
 - Session hardening: `httponly`, `strict_mode`, `SameSite=Lax`, 8-hour TTL
 - Session ID regeneration on login, CSRF token validation on all state-changing forms
+- API rate limiting (per-IP, per-endpoint) and token-based API authentication
 - Bcrypt password hashing (PHP `PASSWORD_BCRYPT`)
 
 ### Patient Management
@@ -111,8 +111,8 @@ A full-featured, web-based clinic management system built with **PHP 8.4**, **Po
 | `audit_logs` | Full action history for accountability |
 | `rate_limits` | API-level brute-force rate tracking |
 | `api_tokens` | Token-based API authentication |
-| `inventory` | Stock management |
-| `settings` | Clinic info and system preferences |
+| `inventory` | *Scaffolded for a future stock-tracking feature — not yet read or written by any module* |
+| `settings` | *Scaffolded for future system preferences — not yet read or written by any module* |
 
 ---
 
@@ -121,20 +121,29 @@ A full-featured, web-based clinic management system built with **PHP 8.4**, **Po
 | Layer | Technology |
 |---|---|
 | Backend | PHP 8.4 (FrankenPHP) |
-| Database | PostgreSQL via Supabase (PDO) |
+| Database | MySQL 8 / MariaDB (PDO) |
 | Frontend | Bootstrap 5.3, Bootstrap Icons |
 | Web Server | Caddy (via Caddyfile) |
 | Containerization | Docker (FrankenPHP image) |
-| CAPTCHA | hCaptcha *(optional)* + built-in math CAPTCHA |
 
 ---
+
+## Local Setup (Laragon / XAMPP)
+
+1. Copy the whole project folder into `C:\laragon\www\` (or `htdocs` for XAMPP).
+2. Start **Apache** and **MySQL** in Laragon/XAMPP.
+3. Open **phpMyAdmin** (or HeidiSQL) → create a database named `cap` → import `database/cap.sql`.
+4. Copy `.env.example` to `.env` and fill in your local values (the defaults already match a stock Laragon/XAMPP install — `root` user, blank password, port `3306`).
+5. Visit `http://localhost/cap/` (adjust the folder name to whatever you named it).
+
+> ⚠️ If you re-extract the project from a fresh zip, remember the `.git` folder gets wiped — run `git init` and push again, and re-copy your `.env` file (it's git-ignored, so it won't be in the zip).
 
 ## Running with Docker
 
 ```bash
 # Build and run
-docker build -t new-hope-dental .
-docker run -p 8080:8080 --env-file .env new-hope-dental
+docker build -t cap-dental .
+docker run -p 8080:8080 --env-file .env cap-dental
 ```
 
 The app will be available at `http://localhost:8080`.
@@ -145,18 +154,19 @@ The app will be available at `http://localhost:8080`.
 
 | Variable | Description |
 |---|---|
-| `DB_HOST` | PostgreSQL host (Supabase) |
+| `DB_HOST` | MySQL host (`localhost` for Laragon/XAMPP) |
+| `DB_PORT` | MySQL port (`3306` by default) |
 | `DB_NAME` | Database name |
-| `DB_USER` | Database user |
-| `DB_PASS` | Database password |
+| `DB_USER` | Database user (`root` by default locally) |
+| `DB_PASS` | Database password (blank by default on Laragon/XAMPP) |
 | `APP_NAME` | Clinic name shown in the UI |
 | `BASE_URL` | Base URL of the app |
 | `SEMAPHORE_API_KEY` | SMS OTP delivery *(optional)* |
 | `RESEND_API_KEY` | Email OTP delivery *(optional)* |
-| `HCAPTCHA_SITE_KEY` | hCaptcha site key *(optional)* |
-| `HCAPTCHA_SECRET` | hCaptcha secret *(optional)* |
 
 > If SMS/Email API keys are not set, the system runs in **demo mode** — the OTP code is displayed directly on screen for testing.
+>
+> Note: `.env.example` also lists `HCAPTCHA_SITE_KEY` / `HCAPTCHA_SECRET` as placeholders for a possible future hCaptcha integration, but no code currently reads them — they have no effect yet.
 
 ---
 
@@ -170,6 +180,24 @@ After importing `database/cap.sql`, the default login is:
 | Password | `password` |
 
 **Change this immediately after first login.**
+
+---
+
+## Documentation & Lessons
+
+Beyond this README, there's a set of step-by-step lesson guides in
+`docs/lessons/` written for anyone — client, panel, or new teammate — who
+needs to understand *how* the system works, not just what it does:
+
+| Lesson | Covers |
+|---|---|
+| [`01-getting-started.md`](docs/lessons/01-getting-started.md) | Local setup, Docker, default credentials, client handover checklist |
+| [`02-system-architecture.md`](docs/lessons/02-system-architecture.md) | Folder structure, the `config → db → auth` boot sequence, the module pattern, PJAX navigation, dark mode |
+| [`03-database-design.md`](docs/lessons/03-database-design.md) | Table relationships, soft-delete, foreign key rules, supporting tables |
+| [`04-security-features.md`](docs/lessons/04-security-features.md) | Brute-force lockout, honeypot, OTP reset, CSRF, session hardening, rate limiting, audit logging — verified line-by-line against the actual code |
+
+Each lesson ends with a short **Try it yourself** exercise so the material
+isn't just read passively.
 
 ---
 
@@ -203,6 +231,8 @@ After importing `database/cap.sql`, the default login is:
 │   └── images/
 ├── database/
 │   └── cap.sql                # Full schema + seed data
+├── docs/
+│   └── lessons/                # Step-by-step guides (setup, architecture, database, security)
 ├── Dockerfile
 └── Caddyfile
 ```

@@ -1,6 +1,6 @@
 <?php
 // Doctors management — profile cards, add/edit drawer, toggle active status.
-// Migrated to PDO / PostgreSQL (Supabase)
+// Uses PDO with MySQL
 
 require_once '../../includes/config.php';
 require_once '../../includes/db.php';
@@ -11,6 +11,13 @@ require_admin();
 $page_title = 'Doctors';
 $error   = '';
 $success = '';
+
+$current_user_id = 0;
+$current_user_name = 'System';
+if (session_status() === PHP_SESSION_ACTIVE) {
+    $current_user_id = intval($_SESSION['user_id'] ?? 0);
+    $current_user_name = trim($_SESSION['user_name'] ?? $_SESSION['full_name'] ?? $_SESSION['username'] ?? 'System');
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     validate_csrf();
@@ -25,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $schedule_days  = trim($_POST['schedule_days'] ?? '');
         $start_time     = trim($_POST['start_time'] ?? '08:00');
         $end_time       = trim($_POST['end_time'] ?? '17:00');
-        $is_active = isset($_POST['is_active']) ? 'TRUE' : 'FALSE';
+        $is_active = isset($_POST['is_active']) ? 1 : 0;
         $photo_url      = '';
 
         if (empty($full_name)) {
@@ -73,7 +80,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'toggle') {
         $id     = intval($_POST['doctor_id'] ?? 0);
-        $active = isset($_POST['is_active']) && $_POST['is_active'] ? 'TRUE' : 'FALSE';
+        $active = (isset($_POST['is_active']) && $_POST['is_active']) ? 1 : 0;
         $stmt   = $conn->prepare("UPDATE doctors SET is_active=? WHERE id=?");
         $stmt->execute([$active, $id]);
         header('Location: list.php');
@@ -423,7 +430,6 @@ $day_labels = [
         <?php endif; ?>
 
     </div>
-</div>
 
 <!-- ── Add/Edit Drawer ──────────────────────────────────────── -->
 <div id="doctorDrawerOverlay" class="drawer-overlay" onclick="closeDrawer()"></div>
@@ -574,7 +580,6 @@ $day_labels = [
     </div>
 </div>
 
-<?php include '../../includes/footer.php'; ?>
 
 <script>
 // ── Make content visible once styles are guaranteed loaded ────
@@ -711,5 +716,7 @@ document.querySelectorAll('[onclick="openDrawer()"]').forEach(function(btn) {
     });
 });
 </script>
+</div>
+<?php include '../../includes/footer.php'; ?>
 </body>
 </html>

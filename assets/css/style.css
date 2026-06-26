@@ -358,23 +358,6 @@ a { text-decoration: none; color: inherit; }
 .user-name { font-size: 0.8rem; font-weight: 600; color: var(--white); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .user-role { font-size: 0.63rem; color: rgba(255,255,255,0.35); text-transform: capitalize; margin-top: 2px; }
 
-.sidebar-logout {
-    display: flex;
-    align-items: center;
-    gap: 11px;
-    padding: 8.5px 12px;
-    color: rgba(255,255,255,0.38);
-    font-size: 0.845rem;
-    font-weight: 500;
-    border-radius: 10px;
-    text-decoration: none;
-    transition: all 0.16s var(--ease);
-    white-space: nowrap;
-    margin: 2px 0 0;
-}
-.sidebar-logout:hover { background: rgba(192,57,43,0.15); color: #fca5a5; }
-.sidebar-logout i { font-size: 1rem; width: 20px; text-align: center; flex-shrink: 0; }
-#sidebar.collapsed .sidebar-logout .nav-label { opacity: 0; }
 
 /* ============================================================
    MAIN LAYOUT
@@ -607,13 +590,6 @@ a:has(.stat-card):hover .stat-value { color: var(--primary); }
 .stat-icon.red    { background: linear-gradient(135deg, var(--danger-bg), var(--danger-border)); color: var(--danger); }
 .stat-icon.gold   { background: linear-gradient(135deg, var(--accent-bg), #fcd34d); color: var(--accent-dark); }
 
-.stat-info { position: relative; z-index: 1; min-width: 0; }
-.stat-label { font-size: 0.68rem; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.09em; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.stat-value { font-family: var(--font-display); font-size: 1.85rem; font-weight: 700; color: var(--gray-900); line-height: 1; transition: color var(--transition); letter-spacing: -0.04em; }
-.stat-sub { font-size: 0.72rem; color: var(--gray-400); margin-top: 6px; line-height: 1.4; }
-.stat-trend { display: inline-flex; align-items: center; gap: 3px; font-size: 0.7rem; font-weight: 600; padding: 2px 7px; border-radius: 100px; margin-top: 6px; }
-.stat-trend.up   { background: var(--success-bg); color: var(--success); }
-.stat-trend.down { background: var(--danger-bg);  color: var(--danger); }
 
 /* ============================================================
    TABLES — Clean with subtle hover
@@ -767,7 +743,22 @@ textarea.form-control { resize: vertical; min-height: 90px; }
 .alert-danger   { background: var(--danger-bg);  border-color: var(--danger-border);  color: #7f1d1d; }
 .alert-info     { background: var(--info-bg);    border-color: var(--info-border);    color: #164e63; }
 .alert-warning  { background: var(--warning-bg); border-color: var(--warning-border); color: #78350f; }
-.alert-dismissible .btn-close { margin-left: auto; opacity: 0.5; flex-shrink: 0; }
+.alert-dismissible .btn-close {
+    margin-left: auto;
+    opacity: 0.45;
+    flex-shrink: 0;
+    align-self: center;
+    margin-top: 0;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border-radius: 50%;
+    transition: opacity 0.15s ease, background 0.15s ease;
+}
+.alert-dismissible .btn-close:hover {
+    opacity: 0.9;
+    background-color: rgba(0,0,0,0.08);
+}
 
 /* ============================================================
    MODALS
@@ -804,50 +795,25 @@ textarea.form-control { resize: vertical; min-height: 90px; }
 /* ============================================================
    SEARCH BAR
    ============================================================ */
-.search-wrapper { position: relative; }
-.search-wrapper .bi-search { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--gray-400); font-size: 0.85rem; pointer-events: none; }
-.search-wrapper .form-control { padding-left: 32px; }
 
 /* ============================================================
    STATUS INDICATORS
    ============================================================ */
 .status-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
-.status-dot.online    { background: var(--success-light); box-shadow: 0 0 6px rgba(16,185,129,0.5); }
 .status-dot.busy      { background: var(--warning-light); }
-.status-dot.offline   { background: var(--gray-300); }
 
 /* ============================================================
    PATIENT CODE / CODE TAGS
    ============================================================ */
-.code-tag {
-    font-family: 'DM Mono', 'Fira Code', 'Courier New', monospace;
-    font-size: 0.75rem; font-weight: 500;
-    color: var(--primary); background: var(--primary-bg);
-    padding: 2px 8px; border-radius: 5px;
-    border: 1px solid rgba(13,110,110,0.2);
-    letter-spacing: 0.02em;
-}
-
-/* ============================================================
-   AVATAR GROUPS
-   ============================================================ */
-.avatar { width: 34px; height: 34px; border-radius: 9px; background: linear-gradient(135deg, var(--primary), var(--primary-light)); color: var(--white); display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 700; font-size: 0.78rem; flex-shrink: 0; }
-.avatar-sm { width: 28px; height: 28px; border-radius: 7px; font-size: 0.68rem; }
-.avatar-lg { width: 44px; height: 44px; border-radius: 12px; font-size: 1rem; }
 
 /* ============================================================
    EMPTY STATES
    ============================================================ */
-.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 24px; text-align: center; }
-.empty-state-icon { font-size: 2.8rem; color: var(--gray-300); margin-bottom: 16px; opacity: 0.8; }
-.empty-state h6 { font-family: var(--font-display); font-size: 1rem; font-weight: 600; color: var(--gray-600); margin-bottom: 8px; }
-.empty-state p { font-size: 0.82rem; color: var(--gray-400); max-width: 280px; line-height: 1.6; }
 
 /* ============================================================
    LOADING SKELETON
    ============================================================ */
 @keyframes shimmer { 0% { background-position: -400px 0; } 100% { background-position: 400px 0; } }
-.skeleton { background: linear-gradient(90deg, var(--gray-100) 25%, var(--gray-150) 50%, var(--gray-100) 75%); background-size: 800px 100%; animation: shimmer 1.4s infinite; border-radius: var(--radius-sm); }
 
 /* ============================================================
    MOBILE SIDEBAR
@@ -965,19 +931,6 @@ textarea.form-control { resize: vertical; min-height: 90px; }
 .login-tagline p { font-size: 0.9rem; color: rgba(255,255,255,0.45); max-width: 320px; line-height: 1.7; }
 
 /* Floating feature pills */
-.login-features { display: flex; flex-direction: column; gap: 12px; margin-top: 48px; width: 100%; max-width: 320px; }
-.login-feature-pill {
-    display: flex; align-items: center; gap: 12px;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 12px;
-    padding: 12px 16px;
-    backdrop-filter: blur(8px);
-    transition: all 0.2s var(--ease);
-}
-.login-feature-pill:hover { background: rgba(255,255,255,0.08); border-color: rgba(13,110,110,0.3); }
-.login-feature-pill-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; flex-shrink: 0; }
-.login-feature-pill-text { font-size: 0.8rem; color: rgba(255,255,255,0.7); font-weight: 500; }
 
 .login-right {
     width: 480px;
@@ -1014,20 +967,6 @@ textarea.form-control { resize: vertical; min-height: 90px; }
 .login-input-wrap .form-control { padding-left: 38px; padding-top: 11px; padding-bottom: 11px; border-radius: var(--radius); font-size: 0.9rem; }
 .login-input-wrap .form-control:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-glow); }
 
-.login-captcha-row { display: flex; align-items: center; gap: 12px; }
-.captcha-badge {
-    display: inline-flex; align-items: center; gap: 8px;
-    background: linear-gradient(135deg, var(--primary-bg), #c8f0f0);
-    border: 1.5px solid rgba(13,110,110,0.2);
-    border-radius: var(--radius);
-    padding: 10px 16px;
-    font-family: var(--font-display);
-    font-size: 1.05rem; font-weight: 700;
-    color: var(--primary); white-space: nowrap;
-    flex-shrink: 0;
-}
-.captcha-input { flex: 1; }
-.captcha-input input { text-align: center; font-family: var(--font-display); font-size: 1rem; font-weight: 600; }
 
 .btn-login {
     width: 100%; padding: 13px;
@@ -1054,8 +993,6 @@ textarea.form-control { resize: vertical; min-height: 90px; }
 .login-footer a:hover { text-decoration: underline; }
 
 /* Sliding panels (forgot password, OTP) */
-.auth-panel { display: none; }
-.auth-panel.active { display: block; animation: fadeUp 0.28s var(--ease-out); }
 
 /* ============================================================
    DASHBOARD WELCOME BANNER
@@ -1107,12 +1044,6 @@ textarea.form-control { resize: vertical; min-height: 90px; }
 /* ============================================================
    TODAY'S SCHEDULE TABLE ROWS
    ============================================================ */
-.schedule-row { display: flex; align-items: center; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--gray-100); }
-.schedule-row:last-child { border-bottom: none; }
-.schedule-time { font-family: var(--font-display); font-size: 0.88rem; font-weight: 700; color: var(--primary); width: 60px; flex-shrink: 0; }
-.schedule-name { font-size: 0.86rem; font-weight: 600; color: var(--gray-900); }
-.schedule-service { font-size: 0.78rem; color: var(--gray-500); margin-top: 2px; }
-.schedule-doctor  { font-size: 0.75rem; color: var(--gray-400); }
 
 /* ============================================================
    MOBILE RESPONSIVE
@@ -1547,9 +1478,6 @@ span.badge, a.badge {
 /* ── Cards & panels ─────────────────────────────────────────── */
 [data-theme="dark"] .card,
 [data-theme="dark"] .stat-card,
-[data-theme="dark"] .view-card,
-[data-theme="dark"] .page-card,
-[data-theme="dark"] .form-card,
 [data-theme="dark"] .bill-kpi-card,
 [data-theme="dark"] .kpi-card {
     background: var(--gray-100) !important;
@@ -1758,18 +1686,8 @@ span.badge, a.badge {
 }
 
 /* ── Search bar ──────────────────────────────────────────────── */
-[data-theme="dark"] .search-wrap,
-[data-theme="dark"] .search-box {
-    background: var(--gray-150) !important;
-    border-color: var(--gray-300) !important;
-}
-[data-theme="dark"] .search-wrap input,
-[data-theme="dark"] .search-box input {
-    background: transparent !important;
-    color: var(--gray-900) !important;
-}
-[data-theme="dark"] .search-wrap input::placeholder,
-[data-theme="dark"] .search-box input::placeholder {
+[data-theme="dark"] .form-control::placeholder,
+[data-theme="dark"] input::placeholder {
     color: var(--gray-400) !important;
 }
 
@@ -1867,9 +1785,8 @@ span.badge, a.badge {
 }
 
 /* ── Tooth chart in dark mode ────────────────────────────────── */
-[data-theme="dark"] .tooth-chart-wrap,
-[data-theme="dark"] .tooth-svg-container,
-[data-theme="dark"] #toothChartSvg {
+[data-theme="dark"] .tooth-cell,
+[data-theme="dark"] .tooth-box {
     background: var(--gray-150) !important;
     border-color: var(--gray-200) !important;
 }
@@ -1903,10 +1820,6 @@ span.badge, a.badge {
 /* ── Inline-locked field notes ───────────────────────────────── */
 [data-theme="dark"] small[style*="color:#6366f1"],
 [data-theme="dark"] small[style*="color:#0d6e6e"],
-[data-theme="dark"] .lock-note {
-    color: var(--gray-600) !important;
-}
-
 /* ── Text utilities ──────────────────────────────────────────── */
 [data-theme="dark"] .text-muted,
 [data-theme="dark"] small.text-muted {
@@ -1926,22 +1839,8 @@ span.badge, a.badge {
 }
 
 /* ── Walk-in page specific ───────────────────────────────────── */
-[data-theme="dark"] .slot-grid button {
-    background: var(--gray-150) !important;
-    border-color: var(--gray-300) !important;
-    color: var(--gray-700) !important;
-}
-[data-theme="dark"] .slot-grid button.next-slot {
-    background: var(--primary-bg) !important;
-    border-color: var(--primary) !important;
-    color: var(--primary) !important;
-}
-[data-theme="dark"] .slot-grid button.booked {
-    background: rgba(220,38,38,0.12) !important;
-    border-color: rgba(220,38,38,0.2) !important;
-    color: var(--gray-400) !important;
-}
-[data-theme="dark"] .slot-grid button.past {
+[data-theme="dark"] .slot-pill.past,
+[data-theme="dark"] .slot-pill.booked {
     opacity: 0.35 !important;
 }
 
@@ -2102,4 +2001,214 @@ span.badge, a.badge {
 [data-theme="dark"] .dash-body > div > div[style*="background: var(--white)"] {
     background: var(--gray-100) !important;
     border-color: var(--gray-200) !important;
+}
+
+/* ============================================================
+   JS-INJECTED ELEMENT STYLES (app.js dynamic elements)
+   These classes are created at runtime by app.js — they must
+   live here so they are available on first paint.
+   ============================================================ */
+
+/* ── Row count badge (appended to .card-header by app.js) ─── */
+.row-count-badge {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 10px;
+    padding: 2px 9px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    background: var(--gray-100);
+    color: var(--gray-500);
+    border: 1px solid var(--gray-200);
+    border-radius: 20px;
+    letter-spacing: 0.01em;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+[data-theme="dark"] .row-count-badge {
+    background: var(--gray-200);
+    color: var(--gray-600);
+    border-color: var(--gray-300);
+}
+
+/* ── Keyboard hint (shown below search input) ─────────────── */
+.kbd-hint {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.72rem;
+    color: var(--gray-400);
+    line-height: 1.4;
+}
+.kbd-hint kbd {
+    display: inline-block;
+    padding: 1px 5px;
+    font-size: 0.68rem;
+    font-family: var(--font-body);
+    background: var(--gray-100);
+    border: 1px solid var(--gray-300);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    color: var(--gray-600);
+    line-height: 1.5;
+}
+[data-theme="dark"] .kbd-hint { color: var(--gray-500); }
+[data-theme="dark"] .kbd-hint kbd {
+    background: var(--gray-200);
+    border-color: var(--gray-400);
+    color: var(--gray-700);
+}
+
+/* ── Inline breadcrumb (injected into .topbar-title-block) ── */
+#breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.72rem;
+    color: var(--gray-400);
+    margin-top: 1px;
+    line-height: 1;
+}
+.bc-item {
+    color: var(--gray-400);
+    transition: color var(--transition);
+}
+.bc-current {
+    color: var(--gray-600);
+    font-weight: 500;
+}
+.bc-sep {
+    color: var(--gray-300);
+    font-size: 0.65rem;
+    display: inline-flex;
+    align-items: center;
+}
+[data-theme="dark"] .bc-item    { color: var(--gray-500); }
+[data-theme="dark"] .bc-current { color: var(--gray-700); }
+[data-theme="dark"] .bc-sep     { color: var(--gray-400); }
+
+/* ============================================================
+   SMOOTH ANIMATIONS — Global enhancement pass
+   ============================================================ */
+
+/* ── 1. Page-entry: cards stagger in on load ──────────────────
+   Cards without .no-anim get a staggered fade+rise on first
+   paint. PJAX sets .no-anim to suppress this on navigation.  */
+.card:not(.no-anim) {
+    animation: cardEnter 0.38s var(--ease-out) both;
+}
+@keyframes cardEnter {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0);    }
+}
+/* Stagger siblings so they cascade in sequence */
+.card:not(.no-anim):nth-child(1) { animation-delay: 0.04s; }
+.card:not(.no-anim):nth-child(2) { animation-delay: 0.09s; }
+.card:not(.no-anim):nth-child(3) { animation-delay: 0.14s; }
+.card:not(.no-anim):nth-child(4) { animation-delay: 0.19s; }
+.card:not(.no-anim):nth-child(5) { animation-delay: 0.24s; }
+.card:not(.no-anim):nth-child(n+6) { animation-delay: 0.28s; }
+
+/* ── 2. Table rows fade in ────────────────────────────────────
+   Each tbody row slides in with a tiny delay so the list
+   "builds" rather than popping in all at once.              */
+tbody tr {
+    animation: rowEnter 0.28s var(--ease-out) both;
+}
+@keyframes rowEnter {
+    from { opacity: 0; transform: translateX(-6px); }
+    to   { opacity: 1; transform: translateX(0);    }
+}
+tbody tr:nth-child(1)  { animation-delay: 0.05s; }
+tbody tr:nth-child(2)  { animation-delay: 0.08s; }
+tbody tr:nth-child(3)  { animation-delay: 0.11s; }
+tbody tr:nth-child(4)  { animation-delay: 0.14s; }
+tbody tr:nth-child(5)  { animation-delay: 0.17s; }
+tbody tr:nth-child(6)  { animation-delay: 0.20s; }
+tbody tr:nth-child(7)  { animation-delay: 0.23s; }
+tbody tr:nth-child(8)  { animation-delay: 0.26s; }
+tbody tr:nth-child(9)  { animation-delay: 0.28s; }
+tbody tr:nth-child(n+10) { animation-delay: 0.30s; }
+
+/* ── 3. KPI / stat cards pop in ──────────────────────────────  */
+.dash-kpi, .an-kpi-card, .stat-card {
+    animation: kpiPop 0.42s var(--ease-spring) both;
+}
+@keyframes kpiPop {
+    from { opacity: 0; transform: scale(0.93) translateY(8px); }
+    to   { opacity: 1; transform: scale(1)    translateY(0);   }
+}
+.dash-kpi:nth-child(1), .an-kpi-card:nth-child(1), .stat-card:nth-child(1) { animation-delay: 0.05s; }
+.dash-kpi:nth-child(2), .an-kpi-card:nth-child(2), .stat-card:nth-child(2) { animation-delay: 0.11s; }
+.dash-kpi:nth-child(3), .an-kpi-card:nth-child(3), .stat-card:nth-child(3) { animation-delay: 0.17s; }
+.dash-kpi:nth-child(4), .an-kpi-card:nth-child(4), .stat-card:nth-child(4) { animation-delay: 0.23s; }
+
+/* ── 4. Alert dismiss — smooth collapse out ──────────────────
+   Bootstrap's alert-dismissible removes the element abruptly.
+   We intercept the hide.bs.alert event in app.js, but we also
+   add a CSS transition so the opacity fades before collapse.  */
+.alert {
+    transition: opacity 0.22s ease, max-height 0.28s ease,
+                padding 0.22s ease, margin 0.22s ease;
+    max-height: 200px;
+    overflow: hidden;
+}
+.alert.dismissing {
+    opacity: 0 !important;
+    max-height: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    margin-bottom: 0 !important;
+    border-width: 0 !important;
+}
+
+/* ── 5. Sidebar nav-link hover — smooth slide highlight ──────  */
+#sidebar .nav-link {
+    position: relative;
+    overflow: hidden;
+}
+#sidebar .nav-link::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,0.06);
+    transform: translateX(-100%);
+    transition: transform 0.22s var(--ease-out);
+    border-radius: inherit;
+}
+#sidebar .nav-link:hover::before {
+    transform: translateX(0);
+}
+
+/* ── 6. Button press feedback ────────────────────────────────  */
+.btn:active:not(:disabled) {
+    transform: scale(0.97) !important;
+    transition: transform 0.08s ease !important;
+}
+
+/* ── 7. Page-title / topbar slides in from top ───────────────  */
+#topbar {
+    animation: topbarIn 0.3s var(--ease-out) both;
+}
+@keyframes topbarIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0);    }
+}
+
+/* ── 8. Suppress all animations on reduced-motion (already in
+   accessibility.css but restate here for the new keyframes)  */
+@media (prefers-reduced-motion: reduce) {
+    .card:not(.no-anim),
+    tbody tr,
+    .dash-kpi, .an-kpi-card, .stat-card,
+    #topbar {
+        animation: none !important;
+        opacity: 1 !important;
+        transform: none !important;
+    }
+}
+
+/* ── 9. Suppress card/row animations on PJAX (set by app.js) ─ */
+.card.no-anim,
+.card.no-anim tbody tr {
+    animation: none !important;
 }

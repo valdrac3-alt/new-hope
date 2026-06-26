@@ -7,6 +7,8 @@ require_once '../../includes/auth.php';
 require_admin();
 
 $page_title = 'Schedule Management';
+$current_user_id = $_SESSION['user']['id'] ?? $_SESSION['user_id'] ?? $_SESSION['id'] ?? 0;
+$current_user_name = $current_user_name ?? ($_SESSION['user']['name'] ?? $_SESSION['name'] ?? $_SESSION['full_name'] ?? 'System');
 
 $success = '';
 $error   = '';
@@ -73,7 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_schedule'])) {
             WHERE day_of_week = ?
         ");
         $stmt->execute([$is_open, $open_time, $close_time, $duration, $day]);
-        $stmt->close();
+        $stmt = null;
     }
 
     log_action($conn, $current_user_id, $current_user_name, 'Updated Clinic Schedule', 'schedule');
@@ -87,10 +89,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['block_date'])) {
     $reason = trim($_POST['reason'] ?? '');
     if ($date && preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
         $stmt = $conn->prepare(
-            "INSERT INTO blocked_dates (blocked_date, reason, created_by) VALUES (?,?,?) ON CONFLICT (blocked_date) DO NOTHING"
+            "INSERT IGNORE INTO blocked_dates (blocked_date, reason, created_by) VALUES (?,?,?)"
         );
         $stmt->execute([$date, $reason, $current_user_id]);
-        $stmt->close();
+        $stmt = null;
         log_action($conn, $current_user_id, $current_user_name, 'Blocked Date', 'schedule', null, "Blocked: $date — $reason");
         $success = "Date $date has been blocked.";
     } else {
@@ -104,7 +106,7 @@ if (isset($_GET['unblock'])) {
     if ($bid > 0) {
         $stmt = $conn->prepare("DELETE FROM blocked_dates WHERE id = ?");
         $stmt->execute([$bid]);
-        $stmt->close();
+        $stmt = null;
         log_action($conn, $current_user_id, $current_user_name, 'Unblocked Date', 'schedule', $bid);
     }
     header('Location: manage.php?msg=unblocked');
@@ -325,9 +327,7 @@ $blocked_dates = $conn->query(
         </div>
 
     </div>
-</div>
 
-<?php include '../../includes/footer.php'; ?>
 <script>
 function toggleDay(day, isOpen) {
     var row    = document.getElementById('row-' + day);
@@ -393,5 +393,7 @@ function applyToAll() {
     }, 2500);
 }
 </script>
+</div>
+<?php include '../../includes/footer.php'; ?>
 </body>
 </html>

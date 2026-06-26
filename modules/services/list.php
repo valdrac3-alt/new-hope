@@ -8,6 +8,14 @@ require_once '../../includes/db.php';
 require_once '../../includes/auth.php';
 require_admin();
 
+if (!isset($current_user_id)) {
+    $current_user_id = $_SESSION['user_id'] ?? ($_SESSION['id'] ?? 0);
+}
+
+if (!isset($current_user_name)) {
+    $current_user_name = $_SESSION['user_name'] ?? ($_SESSION['full_name'] ?? ($_SESSION['name'] ?? 'System'));
+}
+
 $page_title = 'Service Management';
 $success = '';
 $error   = '';
@@ -19,13 +27,13 @@ if (isset($_GET['toggle']) && isset($_GET['sid'])) {
         $stmt = $conn->prepare("SELECT is_active, service_name FROM services WHERE id = ? LIMIT 1");
         $stmt->execute([$sid]);
         $svc = $stmt->fetch(PDO::FETCH_ASSOC);
-        $stmt->close();
+        $stmt->closeCursor();
 
         if ($svc) {
-            $new_status = $svc['is_active'] ? 'FALSE' : 'TRUE';
-            $stmt2 = $conn->prepare("UPDATE services SET is_active = CAST(? AS boolean) WHERE id = ?");
+            $new_status = $svc['is_active'] ? 0 : 1;
+            $stmt2 = $conn->prepare("UPDATE services SET is_active = ? WHERE id = ?");
             $stmt2->execute([$new_status, $sid]);
-            $stmt2->close();
+            $stmt2->closeCursor();
             $label = $new_status ? 'Activated Service' : 'Deactivated Service';
             log_action($conn, $current_user_id, $current_user_name, $label, 'services', $sid, "Service: " . $svc['service_name']);
         }
@@ -41,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $description  = trim($_POST['description']  ?? '');
     $duration     = intval($_POST['duration_minutes'] ?? 30);
     $price        = floatval($_POST['price'] ?? 0);
-    $is_active = isset($_POST['is_active']) ? true : false;
+    $is_active = isset($_POST['is_active']) ? 1 : 0;
 
     if ($service_name === '') {
         $error = 'Service name is required.';
@@ -54,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $chk = $conn->prepare("SELECT id FROM services WHERE service_name = ? LIMIT 1");
         $chk->execute([$service_name]);
         $dup = (bool)$chk->fetch(PDO::FETCH_COLUMN);
-        $chk->close();
+        $chk->closeCursor();
 
         if ($dup) {
             $error = "A service named \"" . e($service_name) . "\" already exists.";
@@ -65,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             );
             $stmt->execute([$service_name, $description, $duration, $price, $is_active]);
             $new_id = $conn->lastInsertId();
-            $stmt->close();
+            $stmt->closeCursor();
             log_action($conn, $current_user_id, $current_user_name, 'Added Service', 'services', $new_id, "Service: $service_name");
             $success = "Service \"" . e($service_name) . "\" added successfully.";
         }
@@ -80,7 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $description  = trim($_POST['description']  ?? '');
     $duration     = intval($_POST['duration_minutes'] ?? 30);
     $price        = floatval($_POST['price'] ?? 0);
-    $is_active = isset($_POST['is_active']) ? true : false;
+    $is_active = isset($_POST['is_active']) ? 1 : 0;
 
     if ($sid <= 0) {
         $error = 'Invalid service.';
@@ -95,18 +103,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $chk = $conn->prepare("SELECT id FROM services WHERE service_name = ? AND id != ? LIMIT 1");
         $chk->execute([$service_name, $sid]);
         $dup = (bool)$chk->fetch(PDO::FETCH_COLUMN);
-        $chk->close();
+        $chk->closeCursor();
 
         if ($dup) {
             $error = "Another service named \"" . e($service_name) . "\" already exists.";
         } else {
             $stmt = $conn->prepare(
                 "UPDATE services
-                 SET service_name = ?, description = ?, duration_minutes = ?, price = ?, is_active = CAST(? AS boolean)
+                 SET service_name = ?, description = ?, duration_minutes = ?, price = ?, is_active = ?
                  WHERE id = ?"
             );
             $stmt->execute([$service_name, $description, $duration, $price, $is_active, $sid]);
-            $stmt->close();
+            $stmt->closeCursor();
             log_action($conn, $current_user_id, $current_user_name, 'Updated Service', 'services', $sid, "Service: $service_name");
             $success = "Service \"" . e($service_name) . "\" updated successfully.";
         }
@@ -254,7 +262,6 @@ $services = $conn->query(
         </div>
 
     </div><!-- /.page-content -->
-</div><!-- /.main-content -->
 
 <!-- ─── ADD SERVICE MODAL ──────────────────────────────────────────────────── -->
 <div class="modal fade" id="addServiceModal" tabindex="-1" aria-labelledby="addServiceModalLabel" aria-hidden="true">
@@ -380,7 +387,6 @@ $services = $conn->query(
     </div>
 </div>
 
-<?php include '../../includes/footer.php'; ?>
 
 <script>
 // Standard duration values in the dropdowns
@@ -478,5 +484,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 <?php endif; ?>
 </script>
+</div><!-- /.main-content -->
+<?php include '../../includes/footer.php'; ?>
 </body>
 </html>

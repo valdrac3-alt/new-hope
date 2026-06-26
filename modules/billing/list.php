@@ -55,7 +55,7 @@ $count_sql  = "SELECT COUNT(*) as c FROM bills b LEFT JOIN patients p ON b.patie
 $count_stmt = $conn->prepare($count_sql);
 $count_stmt->execute($params ?: []);
 $total_count = (int)$count_stmt->fetch(PDO::FETCH_ASSOC)['c'];
-$count_stmt->close();
+$count_stmt->closeCursor();
 
 $total_pages = max(1, ceil($total_count / $per_page));
 $page        = min($page, $total_pages);
@@ -86,7 +86,7 @@ $list_sql  = "
 $list_stmt = $conn->prepare($list_sql);
 $list_stmt->execute($params ?: []);
 $bills = $list_stmt->fetchAll(PDO::FETCH_ASSOC);
-$list_stmt->close();
+$list_stmt->closeCursor();
 
 $totals = $conn->query("
     SELECT
@@ -426,7 +426,7 @@ $collection_rate = $totals['total_due'] > 0
                             <?php endif; ?>
                         </td>
                         <td data-label="Patient">
-                            <a href="<?php echo BASE_URL; ?>modules/patients/view.php?id=<?php echo $b['patient_id']; ?>" style="font-weight:600;font-size:0.85rem;color:var(--gray-900);text-decoration:none;" onmouseover="this.style.color='var(--primary)'" onmouseout="this.style.color='var(--gray-900)'"><?php echo e(ucwords(strtolower($b['patient_name']))); ?></a>
+                            <a href="<?php echo BASE_URL; ?>modules/patients/view.php?id=<?php echo $b['patient_id']; ?>" style="font-weight:600;font-size:0.85rem;color:var(--gray-900);text-decoration:none;" onmouseover="this.style.color='var(--primary)'" onmouseout="this.style.color='var(--gray-900)'"><?php echo e(ucwords(strtolower($b['patient_name'] ?? ''))); ?></a>
                             <div style="font-size:0.72rem;color:var(--gray-400);"><?php echo e($b['patient_code']); ?></div>
                         </td>
                         <td data-label="Service" style="font-size:0.82rem;color:var(--gray-600);"><?php echo e($b['service_name'] ?? '—'); ?></td>

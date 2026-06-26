@@ -1,8 +1,8 @@
 <?php
 // ============================================================
 // index.php — Admin Login
-// Features: Math CAPTCHA, login attempt limiting, OTP password reset
-// Migrated to PDO / PostgreSQL (Supabase)
+// Features: Login attempt limiting, OTP password reset
+// Uses PDO with MySQL
 // ============================================================
 
 ini_set('session.cookie_httponly',  1);
@@ -45,20 +45,7 @@ define('RESET_TOKEN_TTL',    600);
 define('OTP_TTL',            300);
 define('OTP_MAX_ATTEMPTS',     5);
 
-// ============================================================
-// MATH CAPTCHA
-// ============================================================
-function generate_captcha() {
-    $n1 = rand(1, 9);
-    $n2 = rand(1, 9);
-    $_SESSION['captcha_answer'] = $n1 + $n2;
-    $_SESSION['captcha_n1']     = $n1;
-    $_SESSION['captcha_n2']     = $n2;
-}
 
-if (!isset($_SESSION['captcha_answer'])) {
-    generate_captcha();
-}
 
 $view  = $_GET['view'] ?? 'login';
 $token = trim($_GET['token'] ?? '');
@@ -173,23 +160,25 @@ if ($view === 'otp_reset') {
 // ============================================================
 } elseif ($view === 'forgot') {
 
-    // PostgreSQL: check columns exist using information_schema
+    // Self-healing migration: make sure these columns exist on `users`.
+    // Safe to run on every "forgot password" view — checks first, only
+    // ALTERs when a column is actually missing.
     $needed = ['reset_token', 'reset_expires', 'otp_code', 'otp_expires'];
     foreach ($needed as $col) {
         $chk = $conn->prepare(
             "SELECT 1 FROM information_schema.columns
-             WHERE table_name = 'users' AND column_name = ? LIMIT 1"
+             WHERE table_schema = DATABASE() AND table_name = 'users' AND column_name = ? LIMIT 1"
         );
         $chk->execute([$col]);
         if (!$chk->fetch()) {
-            // Add missing column — PostgreSQL syntax
+            // Add missing column — MySQL syntax
             $type_map = [
                 'reset_token'   => 'VARCHAR(64) DEFAULT NULL',
-                'reset_expires' => 'TIMESTAMP DEFAULT NULL',
+                'reset_expires' => 'DATETIME DEFAULT NULL',
                 'otp_code'      => 'VARCHAR(6) DEFAULT NULL',
-                'otp_expires'   => 'TIMESTAMP DEFAULT NULL',
+                'otp_expires'   => 'DATETIME DEFAULT NULL',
             ];
-            $conn->exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS $col " . $type_map[$col]);
+            $conn->exec("ALTER TABLE users ADD COLUMN $col " . $type_map[$col]);
         }
     }
 
@@ -235,7 +224,6 @@ if ($view === 'otp_reset') {
     if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         $username = trim($_POST['username'] ?? '');
         $password = $_POST['password'] ?? '';
-        $math_ans = trim($_POST['math_answer'] ?? '');
 
         if (!empty($_POST['website'])) {
             error_log('[HONEYPOT] Bot detected from IP: ' . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
@@ -243,30 +231,6 @@ if ($view === 'otp_reset') {
             exit();
         }
 
-        $hcaptcha_secret = $_ENV['HCAPTCHA_SECRET'] ?? '';
-        if (!empty($hcaptcha_secret)) {
-            $hcaptcha_token = $_POST['h-captcha-response'] ?? '';
-            if (empty($hcaptcha_token)) {
-                $error = 'Please complete the CAPTCHA.';
-            } else {
-                $hc = curl_init('https://api.hcaptcha.com/siteverify');
-                curl_setopt($hc, CURLOPT_POST, true);
-                curl_setopt($hc, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($hc, CURLOPT_TIMEOUT, 5);
-                curl_setopt($hc, CURLOPT_POSTFIELDS, http_build_query([
-                    'secret'   => $hcaptcha_secret,
-                    'response' => $hcaptcha_token,
-                    'remoteip' => $_SERVER['REMOTE_ADDR'] ?? '',
-                ]));
-                $hc_result = curl_exec($hc);
-                curl_close($hc);
-                $hc_data = json_decode($hc_result, true);
-                if (empty($hc_data['success'])) {
-                    $error = 'CAPTCHA verification failed. Please try again.';
-                    generate_captcha();
-                }
-            }
-        }
 
         api_rate_limit($conn, 'login', MAX_LOGIN_ATTEMPTS, LOCKOUT_SECONDS);
 
@@ -276,19 +240,13 @@ if ($view === 'otp_reset') {
         if (empty($error)) {
             if (empty($username) || empty($password)) {
                 $error = 'Please enter your username and password.';
-            } elseif (!isset($_SESSION['captcha_answer']) || (int)$math_ans !== (int)$_SESSION['captcha_answer']) {
-                $error = 'Incorrect answer to the security question. Please try again.';
-                generate_captcha();
-                $_SESSION['login_attempts'] = $attempts + 1;
-                $_SESSION['last_fail_time'] = time();
             } else {
                 $stmt = $conn->prepare("SELECT * FROM users WHERE username = ? AND is_active = TRUE LIMIT 1");
                 $stmt->execute([$username]);
                 $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
                 if ($user && password_verify($password, $user['password'])) {
-                    unset($_SESSION['login_attempts'], $_SESSION['last_fail_time'],
-                          $_SESSION['captcha_answer'], $_SESSION['captcha_n1'], $_SESSION['captcha_n2']);
+                    unset($_SESSION['login_attempts'], $_SESSION['last_fail_time']);
 
                     session_regenerate_id(true);
 
@@ -311,7 +269,6 @@ if ($view === 'otp_reset') {
                     $error = $remaining > 0
                         ? "Invalid username or password. {$remaining} attempt(s) remaining."
                         : 'Too many failed attempts. Account temporarily locked for 5 minutes.';
-                    generate_captcha();
                 }
             }
         }
@@ -336,9 +293,7 @@ if ($view === 'otp_reset') {
     <meta name="theme-color" content="#2563eb">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link rel="stylesheet" href="<?php echo BASE_URL; ?>assets/css/style.css">
-    <?php if (!empty($_ENV['HCAPTCHA_SITE_KEY'])): ?>
-    <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
-    <?php endif; ?>
+
     <script>
     (function(){
         if (localStorage.getItem('theme') === 'dark') {
@@ -455,10 +410,6 @@ if ($view === 'otp_reset') {
         .login-form-panel { padding: 32px 22px; }
         .form-heading { font-size: 1.15rem; }
 
-        /* Security check: stack math box above input on small phones */
-        .captcha-row { flex-direction: column !important; align-items: stretch !important; }
-        .captcha-row > div:first-child { min-width: 0 !important; width: 100% !important; }
-        .captcha-row input { max-width: 100% !important; }
 
         /* Sign In button: taller for fingers */
         .btn.btn-primary.btn-lg { min-height: 48px; font-size: 1rem; }
@@ -591,7 +542,7 @@ if ($view === 'otp_reset') {
     $chk = $conn->prepare("SELECT id FROM users WHERE reset_token = ? AND reset_expires > ? AND is_active = TRUE LIMIT 1");
     $chk->execute([$token, $now]);
     $token_valid = (bool)$chk->fetch(PDO::FETCH_ASSOC);
-    $chk->close();
+    $chk = null;
     ?>
     <?php if (!$token_valid && !$error): ?>
         <div class="alert alert-danger">
@@ -669,9 +620,9 @@ if ($view === 'otp_reset') {
             <div style="position:relative;">
                 <i class="bi bi-person" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#9ca3af;"></i>
                 <input type="text" name="username" class="form-control"
-                       placeholder="Enter username" style="padding-left:36px;"
-                       required autofocus
-                       value="<?php echo htmlspecialchars($_POST['username'] ?? ''); ?>">
+                    placeholder="Enter username" style="padding-left:36px;"
+                    required autofocus
+                    value="<?php echo htmlspecialchars($_POST['username'] ?? ''); ?>">
             </div>
         </div>
 
@@ -680,34 +631,13 @@ if ($view === 'otp_reset') {
             <div style="position:relative;">
                 <i class="bi bi-lock" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#9ca3af;"></i>
                 <input type="password" name="password" id="passwordInput" class="form-control"
-                       placeholder="Enter password" style="padding-left:36px;" required>
+                    placeholder="Enter password" style="padding-left:36px;" required>
                 <i class="bi bi-eye" id="togglePw"
-                   style="position:absolute;right:12px;top:50%;transform:translateY(-50%);color:#9ca3af;cursor:pointer;"></i>
+                style="position:absolute;right:12px;top:50%;transform:translateY(-50%);color:#9ca3af;cursor:pointer;"></i>
             </div>
         </div>
 
-        <div style="margin-bottom:18px;">
-            <label class="form-label">
-                Security Check
-                <span style="font-size:0.72rem;color:#9ca3af;font-weight:400;">— prove you're human</span>
-            </label>
-            <div style="display:flex;align-items:center;gap:10px;" class="captcha-row">
-                <div style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;
-                            padding:10px 18px;font-weight:800;font-size:1.1rem;color:#1d4ed8;
-                            white-space:nowrap;flex-shrink:0;min-width:120px;text-align:center;letter-spacing:0.05em;">
-                    <?php echo (int)$_SESSION['captcha_n1']; ?> + <?php echo (int)$_SESSION['captcha_n2']; ?> = ?
-                </div>
-                <input type="number" name="math_answer" class="form-control"
-                       placeholder="Answer" required autocomplete="off"
-                       style="max-width:110px;text-align:center;font-size:1rem;font-weight:700;">
-            </div>
-        </div>
 
-        <?php if (!empty($_ENV['HCAPTCHA_SITE_KEY'])): ?>
-        <div style="margin-bottom:18px;">
-            <div class="h-captcha" data-sitekey="<?php echo htmlspecialchars($_ENV['HCAPTCHA_SITE_KEY']); ?>"></div>
-        </div>
-        <?php endif; ?>
 
         <button type="submit" class="btn btn-primary btn-lg" style="width:100%;justify-content:center;">
             <i class="bi bi-box-arrow-in-right"></i> Sign In

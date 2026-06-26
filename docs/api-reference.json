@@ -71,9 +71,8 @@
     "audit_logs": "User activity audit trail",
     "rate_limits": "API rate limiting records",
     "api_tokens": "API authentication tokens",
-    "inventory": "Dental supplies inventory",
-    "settings": "System configuration settings",
-    "sessions": "User session management"
+    "inventory": "Scaffolded for future stock tracking - not yet used",
+    "settings": "Scaffolded for future system preferences - not yet used"
   },
   "modules": {
     "patients": "Patient records management",
@@ -99,11 +98,9 @@
   ],
   "security_features": [
     "Session-based authentication",
-    "hCaptcha on login",
-    "Math CAPTCHA",
+    "Honeypot bot detection",
     "Login attempt limiting (5 attempts)",
     "5-minute lockout",
-    "Honeypot bot detection",
     "API rate limiting",
     "Prepared statements (SQL injection prevention)",
     "XSS protection headers",

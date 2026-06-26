@@ -5,6 +5,10 @@ require_once '../../includes/config.php';
 require_once '../../includes/db.php';
 require_once '../../includes/auth.php';
 
+$user_session = $_SESSION['user'] ?? [];
+$current_user_id = $current_user_id ?? ($_SESSION['user_id'] ?? $user_session['id'] ?? $_SESSION['uid'] ?? 0);
+$current_user_name = $current_user_name ?? ($_SESSION['user_name'] ?? $_SESSION['username'] ?? $user_session['name'] ?? $user_session['full_name'] ?? 'System');
+
 $page_title = 'Archived Patients';
 
 // ── Restore ──────────────────────────────────────────────────────────────────
@@ -15,11 +19,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['restore_id'])) {
         $nr = $conn->prepare("SELECT CONCAT(first_name,' ',last_name) as n FROM patients WHERE id = ? LIMIT 1");
         $nr->execute([$rid]);
         $pname = $nr->fetch(PDO::FETCH_ASSOC)['n'] ?? 'Unknown';
-        $nr->close();
+        $nr = null;
 
         $stmt = $conn->prepare("UPDATE patients SET is_active = TRUE WHERE id = ?");
         $stmt->execute([$rid]);
-        $stmt->close();
+        $stmt = null;
 
         log_action($conn, $current_user_id, $current_user_name, 'Restored Patient', 'patients', $rid, "Restored from archive: $pname.");
     }
@@ -39,7 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['perma_delete_id'])) {
         $chk = $conn->prepare("SELECT CONCAT(first_name,' ',last_name) as n FROM patients WHERE id = ? AND is_active = FALSE LIMIT 1");
         $chk->execute([$did]);
         $row = $chk->fetch(PDO::FETCH_ASSOC);
-        $chk->close();
+        $chk = null;
 
         if ($row) {
             $pname = $row['n'];
@@ -76,7 +80,7 @@ $count_sql  = "SELECT COUNT(*) as c FROM patients p $base_where";
 $count_stmt = $conn->prepare($count_sql);
 $count_stmt->execute($params);
 $total_count = (int)$count_stmt->fetch(PDO::FETCH_ASSOC)['c'];
-$count_stmt->close();
+$count_stmt->closeCursor();
 
 $total_pages = max(1, ceil($total_count / $per_page));
 $page        = min($page, $total_pages);
@@ -102,7 +106,7 @@ $list_sql  = "
 $list_stmt = $conn->prepare($list_sql);
 $list_stmt->execute($params);
 $patients = $list_stmt->fetchAll(PDO::FETCH_ASSOC);
-$list_stmt->close();
+$list_stmt->closeCursor();
 ?><!DOCTYPE html>
 <html lang="en">
 <head><?php include '../../includes/head.php'; ?></head>
@@ -254,7 +258,6 @@ $list_stmt->close();
         <?php endif; ?>
 
     </div>
-</div>
 
 <!-- Permanent Delete Modal -->
 <div class="modal fade" id="permaDeleteModal" tabindex="-1">
@@ -296,11 +299,9 @@ $list_stmt->close();
     </div>
 </div>
 
-<?php include '../../includes/footer.php'; ?>
 
 <script>
-var permaModal = new bootstrap.Modal(document.getElementById('permaDeleteModal'));
-
+function getModal(id){var el=document.getElementById(id);return el?bootstrap.Modal.getOrCreateInstance(el):null;}
 function confirmPermaDelete(id, name, appts, bills, dental) {
     document.getElementById('permaDeleteId').value   = id;
     document.getElementById('permaPatientName').textContent = name;
@@ -320,12 +321,14 @@ function confirmPermaDelete(id, name, appts, bills, dental) {
     } else {
         warn.style.display = 'none';
     }
-    permaModal.show();
+    getModal('permaDeleteModal').show();
 }
 
 document.getElementById('permaConfirmCheck').addEventListener('change', function() {
     document.getElementById('permaDeleteBtn').disabled = !this.checked;
 });
 </script>
+</div>
+<?php include '../../includes/footer.php'; ?>
 </body>
 </html>

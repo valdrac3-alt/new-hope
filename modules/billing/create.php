@@ -5,9 +5,12 @@ require_once '../../includes/config.php';
 require_once '../../includes/db.php';
 require_once '../../includes/auth.php';
 
+// Ensure current user variables are available for bill creation and logging.
+$current_user_id   = $current_user_id   ?? $_SESSION['user_id']   ?? null;
+$current_user_name = $current_user_name ?? $_SESSION['user_name'] ?? 'Unknown User';
+
 $page_title = 'Create Bill';
 $error   = '';
-$success = '';
 
 // Pre-fill from appointment if passed
 $pre_patient_id     = intval($_GET['patient_id'] ?? 0);
@@ -31,7 +34,7 @@ if ($pre_patient_id) {
     $pp_stmt = $conn->prepare("SELECT id, patient_code, first_name, last_name FROM patients WHERE id = ? LIMIT 1");
     $pp_stmt->execute([$pre_patient_id]);
     $pre_patient_info = $pp_stmt->fetch(PDO::FETCH_ASSOC);
-    $pp_stmt->close();
+    $pp_stmt->closeCursor();
 }
 if ($pre_appt_id) {
     $ap_stmt = $conn->prepare("
@@ -42,7 +45,7 @@ if ($pre_appt_id) {
     ");
     $ap_stmt->execute([$pre_appt_id]);
     $pre_service_info  = $ap_stmt->fetch(PDO::FETCH_ASSOC);
-    $ap_stmt->close();
+    $ap_stmt->closeCursor();
     if ($pre_service_info) {
         $pre_service_id    = intval($pre_service_info['service_id'] ?? 0);
         $pre_service_price = floatval($pre_service_info['price'] ?? 0);
@@ -111,10 +114,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($stmt->rowCount() < 1) {
             $error = 'Failed to save the bill. Please check all fields and try again.';
-            $stmt->close();
+            $stmt->closeCursor();
         } else {
             $new_id = $conn->lastInsertId();
-            $stmt->close();
+            $stmt->closeCursor();
 
             log_action($conn, $current_user_id, $current_user_name,
                 'Created Bill', 'billing', $new_id,
@@ -346,9 +349,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
 
     </div>
-</div>
 
-<?php include '../../includes/footer.php'; ?>
 <script>
 function fillPrice(sel) {
     var price = sel.options[sel.selectedIndex]?.dataset?.price;
@@ -407,5 +408,7 @@ function loadAppointments(patient_id) {
 loadAppointments(<?php echo $pre_patient_id; ?>);
 <?php endif; ?>
 </script>
+</div>
+<?php include '../../includes/footer.php'; ?>
 </body>
 </html>

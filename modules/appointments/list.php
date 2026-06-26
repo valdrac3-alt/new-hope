@@ -298,7 +298,7 @@ $list_stmt->closeCursor();
                             </td>
                             <!-- Patient -->
                             <td data-label="Patient" style="padding:13px 16px;">
-                                <a href="<?php echo BASE_URL; ?>modules/patients/view.php?id=<?php echo $a['patient_id']; ?>" style="font-size:0.85rem;font-weight:700;color:var(--gray-900);text-decoration:none;" onmouseover="this.style.color='var(--primary)'" onmouseout="this.style.color='var(--gray-900)'"><?php echo htmlspecialchars(ucwords(strtolower($a['patient_name']))); ?></a>
+                                <a href="<?php echo BASE_URL; ?>modules/patients/view.php?id=<?php echo $a['patient_id']; ?>" style="font-size:0.85rem;font-weight:700;color:var(--gray-900);text-decoration:none;" onmouseover="this.style.color='var(--primary)'" onmouseout="this.style.color='var(--gray-900)'"><?php echo htmlspecialchars(ucwords(strtolower($a['patient_name'] ?? ''))); ?></a>
                                 <?php if (($a['type'] ?? 'walk-in') === 'walk-in'): ?>
                                 <span style="display:inline-flex;align-items:center;gap:3px;margin-left:5px;padding:1px 6px;border-radius:20px;font-size:0.67rem;font-weight:700;background:rgba(37,99,235,0.08);color:#2563eb;border:1px solid rgba(37,99,235,0.2);vertical-align:middle;"><i class="bi bi-person-walking" style="font-size:0.62rem;"></i>Walk-in</span>
                                 <?php else: ?>
@@ -417,7 +417,6 @@ $list_stmt->closeCursor();
         <?php endif; ?>
 
     </div>
-</div>
 
 <!-- Status Update Modal -->
 <div class="modal fade" id="statusModal" tabindex="-1">
@@ -607,12 +606,8 @@ $list_stmt->closeCursor();
     </div>
 </div>
 
-<?php include '../../includes/footer.php'; ?>
 <script>
-var statusModal      = new bootstrap.Modal(document.getElementById('statusModal'));
-var deleteApptModal  = new bootstrap.Modal(document.getElementById('deleteApptModal'));
-var rescheduleModal  = new bootstrap.Modal(document.getElementById('rescheduleModal'));
-
+function getModal(id){var el=document.getElementById(id);return el?bootstrap.Modal.getOrCreateInstance(el):null;}
 /* ── Reschedule / Edit Modal ─────────────────────────────── */
 function openRescheduleModal(apptId) {
     document.getElementById('rescheduleAlert').style.display = 'none';
@@ -651,7 +646,7 @@ function openRescheduleModal(apptId) {
 
             // Load slots for the current date
             rsLoadSlots(a.appointment_time);
-            rescheduleModal.show();
+            getModal('rescheduleModal').show();
         })
         .catch(function () { alert('Network error. Please try again.'); });
 }
@@ -743,9 +738,9 @@ function doReschedule() {
         if (res.status === 'success') {
             if (res.duplicate_warning) {
                 rsShowAlert('warning', '<i class="bi bi-exclamation-triangle-fill"></i> ' + res.duplicate_warning + '<br>Appointment rescheduled successfully.');
-                setTimeout(function () { rescheduleModal.hide(); location.reload(); }, 3000);
+                setTimeout(function () { getModal('rescheduleModal').hide(); location.reload(); }, 3000);
             } else {
-                rescheduleModal.hide();
+                getModal('rescheduleModal').hide();
                 location.reload();
             }
         } else {
@@ -762,7 +757,7 @@ var deleteApptId    = null;
 
 function updateStatus(id, btn) {
     document.getElementById('appt_id').value = id;
-    statusModal.show();
+    getModal('statusModal').show();
 }
 
 function getCsrfToken() {
@@ -781,28 +776,27 @@ function saveStatus() {
     .then(res => res.json())
     .then(data => {
         if (data.status === 'success') {
-            statusModal.hide();
+            getModal('statusModal').hide();
             location.reload();
         } else if (data.status === 'no_record_warning') {
-            statusModal.hide();
+            getModal('statusModal').hide();
             pendingCompleteId = data.appt_id;
-            noRecordModal.show();
+            getModal('noRecordModal').show();
         } else {
             alert('Error: ' + data.message);
         }
     });
 }
 
-var noRecordModal     = new bootstrap.Modal(document.getElementById('noRecordModal'));
 var pendingCompleteId = null;
 
 function goToRecordTreatment() {
-    noRecordModal.hide();
+    getModal('noRecordModal').hide();
     window.location.href = _baseUrl + 'modules/treatments/add.php?appointment_id=' + pendingCompleteId;
 }
 
 function completeAnyway() {
-    noRecordModal.hide();
+    getModal('noRecordModal').hide();
     fetch(_baseUrl+'api/appointments.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -818,7 +812,7 @@ function completeAnyway() {
 function confirmDeleteAppt(id, code) {
     deleteApptId = id;
     document.getElementById('deleteApptCode').textContent = code;
-    deleteApptModal.show();
+    getModal('deleteApptModal').show();
 }
 
 function doDeleteAppt() {
@@ -829,27 +823,26 @@ function doDeleteAppt() {
     })
     .then(res => res.json())
     .then(data => {
-        deleteApptModal.hide();
+        getModal('deleteApptModal').hide();
         if (data.status === 'success') location.reload();
         else alert('Error: ' + data.message);
     });
 }
 
-var confirmApptModal = new bootstrap.Modal(document.getElementById('confirmApptModal'));
 var pendingConfirmId = null;
 
 function openConfirmModal(id, code, patient) {
     pendingConfirmId = id;
     document.getElementById('confirmApptCode').textContent    = code;
     document.getElementById('confirmApptPatient').textContent = patient;
-    confirmApptModal.show();
+    getModal('confirmApptModal').show();
 }
 
 function doConfirmAppt() {
     if (!pendingConfirmId) return;
     var btn = document.getElementById('doConfirmBtn');
     if (btn) { btn.disabled = true; btn.textContent = 'Confirming...'; }
-    confirmApptModal.hide();
+    getModal('confirmApptModal').hide();
     fetch(_baseUrl+'api/appointments.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -863,7 +856,7 @@ function doConfirmAppt() {
         if (data.status === 'success') {
             location.reload();
         } else {
-            confirmApptModal.show();
+            getModal('confirmApptModal').show();
             if (btn) { btn.disabled = false; btn.textContent = 'Yes, Confirm'; }
             var errEl = document.getElementById('confirmApptError');
             if (errEl) { errEl.querySelector('span').textContent = data.message || 'Confirmation failed. Please try again.'; errEl.style.display = 'block'; }
@@ -871,7 +864,7 @@ function doConfirmAppt() {
         }
     })
     .catch(err => {
-        confirmApptModal.show();
+        getModal('confirmApptModal').show();
         if (btn) { btn.disabled = false; btn.textContent = 'Yes, Confirm'; }
         var errEl = document.getElementById('confirmApptError');
         if (errEl) { errEl.querySelector('span').textContent = err.message || 'A server error occurred. Please refresh and try again.'; errEl.style.display = 'block'; }
@@ -1272,7 +1265,7 @@ function submitWalkin() {
     .then(r => r.json())
     .then(res => {
         btn.disabled = false;
-        btn.innerHTML = '<i class="bi bi-person-check-fill"></i> <span id="walkinBtnLabel">Book Appointment</span>';
+        btn.innerHTML = '<i class="bi bi-person-check-fill"></i> <span>Book Appointment</span>';
         if (res.status === 'success') {
             var appt           = res.appt || {};
             var isReturning    = !!res.is_returning;
@@ -1325,7 +1318,7 @@ function submitWalkin() {
     })
     .catch(() => {
         btn.disabled = false;
-        btn.innerHTML = '<i class="bi bi-person-check-fill"></i> <span id="walkinBtnLabel">Book Appointment</span>';
+        btn.innerHTML = '<i class="bi bi-person-check-fill"></i> <span>Book Appointment</span>';
         showDrawerAlert('danger', 'Network error. Please try again.');
     });
 }
@@ -1344,5 +1337,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 <?php endif; ?>
 </script>
+</div>
+<?php include '../../includes/footer.php'; ?>
 </body>
 </html>

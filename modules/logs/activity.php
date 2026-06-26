@@ -15,37 +15,30 @@ $filter  = trim($_GET['module'] ?? '');
 
 $where = '1=1';
 $params = [];
-$types  = '';
 
 if ($search !== '') {
     $where   .= " AND (l.user_name LIKE ? OR l.action LIKE ? OR l.details LIKE ?)";
     $s = "%$search%";
     $params = array_merge($params, [$s, $s, $s]);
-    $types  .= 'sss';
 }
 if ($filter !== '') {
     $where  .= " AND l.module = ?";
     $params[] = $filter;
-    $types   .= 's';
 }
 
 $count_sql = "SELECT COUNT(*) as c FROM audit_logs l WHERE $where";
 $stmt = $conn->prepare($count_sql);
 $stmt->execute($params ?: []);
 $total = (int)$stmt->fetch(PDO::FETCH_ASSOC)['c'];
-$stmt->close();
 
 $total_pages = max(1, (int)ceil($total / $per_page));
 
 $sql  = "SELECT l.*, u.full_name as user_full FROM audit_logs l
          LEFT JOIN users u ON l.user_id = u.id
-         WHERE $where ORDER BY l.created_at DESC LIMIT ? OFFSET ?";
-$all_params = array_merge($params, [$per_page, $offset]);
-$all_types  = $types . 'ii';
+         WHERE $where ORDER BY l.created_at DESC LIMIT $per_page OFFSET $offset";
 $stmt2 = $conn->prepare($sql);
-$stmt2->execute($all_params);
+$stmt2->execute($params);
 $logs = $stmt2->fetchAll(PDO::FETCH_ASSOC);
-$stmt2->close();
 
 $modules = $conn->query("SELECT DISTINCT module FROM audit_logs WHERE module IS NOT NULL ORDER BY module")->fetchAll(PDO::FETCH_ASSOC);
 ?><!DOCTYPE html>
